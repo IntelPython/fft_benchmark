@@ -1,0 +1,43 @@
+$PREFIX = C:\IntelPython35
+========== fft_cdp-out-c.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, not in-place, cached
+TAG: Size: 1200000, Reps: 16, Samples: 24
+TAG: ....
+0.343, 0.361, 0.435
+
+========== fft_cdp-in-c.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, in-place, cached
+TAG: Size: 1200000, Reps: 16, Samples: 24
+TAG: ....
+0.335, 0.356, 0.398
+
+========== fft2_cdp-out-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, out-of-place, non-cached
+TAG: Size: (1200, 1200), Reps: 16, Samples: 24
+TAG: ....
+0.261, 0.294, 0.325
+
+========== fft2_cdp-in-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, in-place, non-cached
+TAG: Size: (1200, 1200), Reps: 16, Samples: 24
+TAG: ....
+0.248, 0.280, 0.321
+
+========== fft3_cdp-out-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, out-of-place, non-cached
+TAG: Size: (113, 114, 115), Reps: 16, Samples: 24
+TAG: ....
+0.500, 0.581, 0.662
+
+========== fft3_cdp-in-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, in-place, non-cached
+TAG: Size: (113, 114, 115), Reps: 16, Samples: 24
+TAG: ....
+0.513, 0.560, 0.745
+

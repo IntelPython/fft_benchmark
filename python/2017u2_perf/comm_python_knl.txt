@@ -1,0 +1,23 @@
+TAG: Using time
+TAG: comm
+numpy.__mkl_version__ = None
+TAG: batch_size=16, repetitions=24
+
+TAG: np.fft.fft arg: (25000000,) dtype('complex128')
+66.125, 66.181, 66.239
+
+TAG: scipy.fftpack.fft, overwrite_x=True arg: (25000000,) dtype('complex128')
+63.826, 63.842, 64.507
+
+TAG: np.fft.fft2 arg: (5000, 5000) dtype('complex128')
+65.566, 65.681, 66.441
+
+TAG: scipy.fftpack.fft2, overwrite_x=True arg: (5000, 5000) dtype('complex128')
+71.333, 71.439, 71.952
+
+TAG: np.fft.fftn arg: (313, 314, 315) dtype('complex128')
+1473.128, 1489.516, 1502.838
+
+TAG: scipy.fftpack.fftn, overwrite_x=True arg: (313, 314, 315) dtype('complex128')
+1236.494, 1238.124, 1239.399
+

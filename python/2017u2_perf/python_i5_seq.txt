@@ -1,0 +1,22 @@
+TAG: Using itimer
+TAG: root
+TAG: batch_size=16, repetitions=24
+
+TAG: np.fft.fft arg: (1200000,) dtype('complex128')
+0.726, 0.737, 0.842
+
+TAG: scipy.fftpack.fft, overwrite_x=True arg: (1200000,) dtype('complex128')
+0.630, 0.641, 0.695
+
+TAG: np.fft.fft2 arg: (1200, 1200) dtype('complex128')
+0.576, 0.589, 0.606
+
+TAG: scipy.fftpack.fft2, overwrite_x=True arg: (1200, 1200) dtype('complex128')
+0.431, 0.446, 0.457
+
+TAG: np.fft.fftn arg: (113, 114, 115) dtype('complex128')
+1.141, 1.165, 1.316
+
+TAG: scipy.fftpack.fftn, overwrite_x=True arg: (113, 114, 115) dtype('complex128')
+0.976, 1.023, 1.081
+

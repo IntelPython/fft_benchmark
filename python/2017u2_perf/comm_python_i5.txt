@@ -1,0 +1,14 @@
+TAG: Using itimer
+TAG: comm
+numpy.__mkl_version__ = None
+TAG: batch_size=16, repetitions=24
+
+TAG: np.fft.fft arg: (1200000,) dtype('complex128')
+1.091, 1.134, 1.343
+
+TAG: np.fft.fft2 arg: (1200, 1200) dtype('complex128')
+1.222, 1.233, 1.402
+
+TAG: np.fft.fftn arg: (113, 114, 115) dtype('complex128')
+5.898, 6.015, 6.099
+

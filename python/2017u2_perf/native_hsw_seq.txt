@@ -1,0 +1,43 @@
+$PREFIX = /localdisk/work/opavlyk/miniconda3/envs/intel_u2
+========== fft_cdp-out-c.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, not in-place, cached
+TAG: Size: 25000000, Reps: 16, Samples: 24
+TAG: .
+13.078, 13.079, 13.096
+
+========== fft_cdp-in-c.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, in-place, cached
+TAG: Size: 25000000, Reps: 16, Samples: 24
+TAG: .
+12.834, 12.870, 12.872
+
+========== fft2_cdp-out-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, out-of-place, non-cached
+TAG: Size: (5000, 5000), Reps: 16, Samples: 24
+TAG: .
+7.377, 7.378, 7.521
+
+========== fft2_cdp-in-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, in-place, non-cached
+TAG: Size: (5000, 5000), Reps: 16, Samples: 24
+TAG: .
+7.005, 7.007, 7.159
+
+========== fft3_cdp-out-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, out-of-place, non-cached
+TAG: Size: (313, 314, 315), Reps: 16, Samples: 24
+TAG: .
+22.715, 22.752, 22.858
+
+========== fft3_cdp-in-nc.exe ==========
+TAG: Intel(R) Math Kernel Library Version 2017.0.2 Product Build 20170126 for Intel(R) 64 architecture applications
+TAG: Complex double, in-place, non-cached
+TAG: Size: (313, 314, 315), Reps: 16, Samples: 24
+TAG: .
+22.015, 22.020, 22.032
+
