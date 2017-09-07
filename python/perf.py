@@ -77,12 +77,18 @@ def time_func(func, arg_array, keywords, batch_size=16, repetitions=24, refresh_
     # warm-up
     gc.collect()
     gc.disable()
+    t0 = now()
     f = func(buf, **keywords)
+    t1 = now()
+    time_tot = time_delta(t0, t1)
+    actual_batch_size = batch_size
+    if time_tot * batch_size > 5:
+        actual_batch_size = 1 + int(5/time_tot)
     # start measurements
     for i in range(repetitions):
         time_tot = 0
         if refresh_buffer:
-            for _ in range(batch_size):
+            for _ in range(actual_batch_size):
                 np.copyto(buf, arg_array)
                 t0 = now()
                 f = func(buf, **keywords)
@@ -90,12 +96,12 @@ def time_func(func, arg_array, keywords, batch_size=16, repetitions=24, refresh_
                 time_tot += time_delta(t0, t1)
         else:
             t0 = now()
-            for _ in range(batch_size):
+            for _ in range(actual_batch_size):
                 f = func(buf, **keywords)
             t1 = now()
             time_tot += time_delta(t0, t1)
         #
-        times_list[i] = time_tot
+        times_list[i] = (time_tot/actual_batch_size) * batch_size
     gc.enable()
     return times_list
 

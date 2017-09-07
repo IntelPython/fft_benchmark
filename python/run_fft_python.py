@@ -38,27 +38,29 @@ del buf
 
 print("", flush=True)
 
-perf_times = time_func(np.fft.fft, vec_z, dict())
+tf_kw = {'batch_size': 16, 'repetitions': 6}
+
+perf_times = time_func(np.fft.fft, vec_z, dict(), **tf_kw)
 print_summary(perf_times, header='np.fft.fft' + arg_signature(vec_z))
 
 if run_scipy:
-    perf_times = time_func(scipy.fftpack.fft, vec_z, dict(overwrite_x=True))
+    perf_times = time_func(scipy.fftpack.fft, vec_z, dict(overwrite_x=True), **tf_kw)
     print_summary(perf_times, header='scipy.fftpack.fft, overwrite_x=True' + arg_signature(vec_z))
 
 
-perf_times = time_func(np.fft.fft2, mat_z, dict())
+perf_times = time_func(np.fft.fft2, mat_z, dict(), **tf_kw)
 print_summary(perf_times, header='np.fft.fft2' + arg_signature(mat_z))
 
 if run_scipy:
     # Benchmarking scipy.fftpack
-    perf_times = time_func(scipy.fftpack.fft2, mat_z, dict(overwrite_x=True))
+    perf_times = time_func(scipy.fftpack.fft2, mat_z, dict(overwrite_x=True), **tf_kw)
     print_summary(perf_times, header='scipy.fftpack.fft2, overwrite_x=True' + arg_signature(mat_z))
 
 
-perf_times = time_func(np.fft.fftn, arr_z, dict())
+perf_times = time_func(np.fft.fftn, arr_z, dict(), **tf_kw)
 print_summary(perf_times, header='np.fft.fftn' + arg_signature(arr_z))
 
 if run_scipy:
-    perf_times = time_func(scipy.fftpack.fftn, arr_z, dict(overwrite_x=True))
+    perf_times = time_func(scipy.fftpack.fftn, arr_z, dict(overwrite_x=True), **tf_kw)
     print_summary(perf_times, header='scipy.fftpack.fftn, overwrite_x=True' + arg_signature(arr_z))
 
