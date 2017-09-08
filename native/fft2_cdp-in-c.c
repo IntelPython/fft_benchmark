@@ -86,6 +86,12 @@ int main() {
         status = DftiCommitDescriptor(hand);
         assert(status == 0);
 
+        status = DftiSetValue(hand, DFTI_FORWARD_SCALE, 1.0);
+        assert(status == 0);
+
+        status = DftiSetValue(hand, DFTI_BACKWARD_SCALE, 1.0/(N1 * N2));
+        assert(status == 0);
+
 //        status = DftiSetValue(hand, DFTI_COMPLEX_STORAGE, DFTI_COMPLEX_COMPLEX);
 //        assert(status == 0);
 

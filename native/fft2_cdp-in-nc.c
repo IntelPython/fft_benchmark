@@ -68,9 +68,9 @@ int main() {
 
     warm_up_threads();
 
-    for(si=0; si < samps; time_tot=0, si++) {
+    for(si=0; si < samps; si++) {
 
-        for(it = -1; it <reps;  it++) {
+        for(time_tot=0, it = -1; it <reps;  it++) {
 
            cblas_zcopy(N, (void *) x, 1, (void *) buf, 1); /* buf = x */
            /* memcpy(buf, x, N*sizeof(MKL_Complex16)); */
@@ -86,6 +86,12 @@ int main() {
             assert(status == 0);
 
             status = DftiSetValue(hand, DFTI_INPUT_STRIDES, strides);
+            assert(status == 0);
+
+            status = DftiSetValue(hand, DFTI_FORWARD_SCALE, 1.0);
+            assert(status == 0);
+
+            status = DftiSetValue(hand, DFTI_BACKWARD_SCALE, 1.0/(N1 * N2));
             assert(status == 0);
 
             status = DftiCommitDescriptor(hand);
