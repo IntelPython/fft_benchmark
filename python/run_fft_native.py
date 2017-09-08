@@ -113,7 +113,7 @@ def update_envs(st_dict, update_dict):
     res.update(update_dict)
     return res
 
-def native_perf_times(exec, pars, repetitions=24):
+def native_perf_times(exec, pars, repetitions=6):
     global natives_dir
     header = ['=' * 10 + ' ' + exec + ' ' + '=' * 10]
     perfs = []
@@ -154,17 +154,17 @@ print("$PREFIX = %s" % prefix)
 if IS_WIN:
     # inherenting from the environment allows native code to see MKL
     common_env_vars = environ.copy()
-    common_env_vars.update({'REPS' : '16'})
+    common_env_vars.update({'REPS' : '12'})
     params_1d = {'N' : '1200000'}
     params_2d = {'N1' : '1200', 'N2' : '1200'}
     params_3d = {'N1' : '113', 'N2' : '114', 'N3' : '115'}
 else:
     common_env_vars = update_envs(environ, {
         'LD_LIBRARY_PATH' : prefix + '/lib' + ':' + environ.get('LD_LIBRARY_PATH', default=''),
-        'REPS' : '16', })
-    params_1d = {'N' : '25000000'}
-    params_2d = {'N1' : '5000', 'N2' : '5000'}
-    params_3d = {'N1' : '313', 'N2' : '314', 'N3' : '315'}
+        'REPS' : '16'})
+    params_1d = {'N' : '5000000'}
+    params_2d = {'N1' : '2500', 'N2' : '2500'}
+    params_3d = {'N1' : '113', 'N2' : '214', 'N3' : '315'}
 
 header, perf_times = native_perf_times('fft_cdp-out-c.exe', params_1d)
 print_info(header, perf_times)

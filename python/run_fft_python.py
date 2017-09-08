@@ -13,9 +13,9 @@ if system() == 'Windows':
    n2d = 1200
    size3d = (113, 114, 115)
 else:
-   n1d = 25*(10**6)
-   n2d = 5000
-   size3d = (313, 314, 315)
+   n1d = 5*(10**6)
+   n2d = 2500
+   size3d = (113, 214, 315)
 
 rs = get_random_state()
 
@@ -40,7 +40,7 @@ print("", flush=True)
 
 tf_kw = {'batch_size': 16, 'repetitions': 6}
 
-perf_times = time_func(np.fft.fft, vec_z, dict(), **tf_kw)
+perf_times = time_func(np.fft.fft, vec_z, dict(), refresh_buffer=False, **tf_kw)
 print_summary(perf_times, header='np.fft.fft' + arg_signature(vec_z))
 
 if run_scipy:
@@ -48,7 +48,7 @@ if run_scipy:
     print_summary(perf_times, header='scipy.fftpack.fft, overwrite_x=True' + arg_signature(vec_z))
 
 
-perf_times = time_func(np.fft.fft2, mat_z, dict(), **tf_kw)
+perf_times = time_func(np.fft.fft2, mat_z, dict(), refresh_buffer=False, **tf_kw)
 print_summary(perf_times, header='np.fft.fft2' + arg_signature(mat_z))
 
 if run_scipy:
@@ -57,7 +57,7 @@ if run_scipy:
     print_summary(perf_times, header='scipy.fftpack.fft2, overwrite_x=True' + arg_signature(mat_z))
 
 
-perf_times = time_func(np.fft.fftn, arr_z, dict(), **tf_kw)
+perf_times = time_func(np.fft.fftn, arr_z, dict(), refresh_buffer=False, **tf_kw)
 print_summary(perf_times, header='np.fft.fftn' + arg_signature(arr_z))
 
 if run_scipy:
