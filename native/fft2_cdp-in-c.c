@@ -86,8 +86,8 @@ int main() {
         status = DftiCommitDescriptor(hand);
         assert(status == 0);
 
-        status = DftiSetValue(hand, DFTI_COMPLEX_STORAGE, DFTI_COMPLEX_COMPLEX);
-        assert(status == 0);
+//        status = DftiSetValue(hand, DFTI_COMPLEX_STORAGE, DFTI_COMPLEX_COMPLEX);
+//        assert(status == 0);
 
         t1 = moment_now();
         time_tot += t1 - t0;

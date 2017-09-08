@@ -88,9 +88,6 @@ int main() {
             status = DftiSetValue(hand, DFTI_INPUT_STRIDES, strides);
             assert(status == 0);
 
-            status = DftiSetValue(hand, DFTI_COMPLEX_STORAGE, DFTI_COMPLEX_COMPLEX);
-            assert(status == 0);
-
             status = DftiCommitDescriptor(hand);
             assert(status == 0);
 
