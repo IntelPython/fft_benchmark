@@ -89,6 +89,13 @@ int main() {
             status = DftiSetValue(hand, DFTI_INPUT_STRIDES, strides);
             assert(status == 0);
 
+            status = DftiSetValue(hand, DFTI_FORWARD_SCALE, 1.0);
+            assert(status == 0);
+
+            status = DftiSetValue(hand, DFTI_BACKWARD_SCALE, 1.0/(N1 * N2 * N3));
+            assert(status == 0);
+
+
             status = DftiCommitDescriptor(hand);
             assert(status == 0);
 
