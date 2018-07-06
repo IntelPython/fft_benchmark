@@ -140,10 +140,7 @@ def print_info(header, perf_times):
     print("", flush=True)
 
 
-if IS_WIN:
-    natives_dir = '..\\native\\build\\'
-else:
-    natives_dir = '../native/build/'
+natives_dir = ''
 
 if IS_WIN:
     prefix = dirname(executable)
@@ -166,20 +163,43 @@ else:
     params_2d = {'N1' : '2500', 'N2' : '2500'}
     params_3d = {'N1' : '113', 'N2' : '214', 'N3' : '315'}
 
-header, perf_times = native_perf_times('fft_cdp-out-c.exe', params_1d)
+# Parse args
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('-t', '--type', choices=['fft', 'fft2', 'fft3', 'rfft'],
+                    required=True, help='FFT types to run')
+parser.add_argument('-p', '--overwrite-x', default=False, action='store_true',
+                    help='Allow overwriting input array')
+parser.add_argument('-s', '--shape', default=None,
+                    help='FFT shape, dimensions separated by comma')
+
+args = parser.parse_args()
+if args.shape is not None:
+    shape = [x for x in args.shape.split(',')]
+
+    if len(shape) == 1 and args.type in ['fft', 'rfft']:
+        params_1d['N'] = shape[0]
+    elif len(shape) == 2 and args.type == 'fft2':
+        params_2d['N1'] = shape[0]
+        params_2d['N2'] = shape[1]
+    elif len(shape) == 3 and args.type == 'fft3':
+        params_3d['N1'] = shape[0]
+        params_3d['N2'] = shape[1]
+        params_3d['N3'] = shape[2]
+    else:
+        raise Exception('Unsupported FFT shape')
+
+in_place = 'in' if args.overwrite_x else 'out'
+cached = 'c' if args.type == 'fft' else 'nc'
+domain = 'r' if args.type == 'rfft' else 'c'
+problem = 'fft' if args.type == 'rfft' else args.type
+exe_name = f'{problem}_{domain}dp-{in_place}-{cached}.exe'
+
+params = {
+    'fft': params_1d,
+    'fft2': params_2d,
+    'fft3': params_3d
+}
+header, perf_times = native_perf_times(exe_name, params[problem])
 print_info(header, perf_times)
 
-header, perf_times = native_perf_times('fft_cdp-in-c.exe', params_1d)
-print_info(header, perf_times)
-
-header, perf_times = native_perf_times('fft2_cdp-out-nc.exe', params_2d)
-print_info(header, perf_times)
-
-header, perf_times = native_perf_times('fft2_cdp-in-nc.exe', params_2d)
-print_info(header, perf_times)
-
-header, perf_times = native_perf_times('fft3_cdp-out-nc.exe', params_3d)
-print_info(header, perf_times)
-
-header, perf_times = native_perf_times('fft3_cdp-in-nc.exe', params_3d)
-print_info(header, perf_times)
