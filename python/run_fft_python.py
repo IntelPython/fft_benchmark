@@ -23,6 +23,9 @@ rs = get_random_state()
 vec_z = rs.randn(n1d) + \
         rs.randn(n1d) * 1j
 
+vec_real = rs.randn(n1d) + \
+        rs.randn(n1d)
+
 mat_z =  rs.randn(n2d, n2d) + \
          rs.randn(n2d, n2d) * 1j
 
@@ -64,3 +67,10 @@ if run_scipy:
     perf_times = time_func(scipy.fftpack.fftn, arr_z, dict(overwrite_x=True), **tf_kw)
     print_summary(perf_times, header='scipy.fftpack.fftn, overwrite_x=True' + arg_signature(arr_z))
 
+
+perf_times = time_func(np.fft.rfft, vec_real, dict(), refresh_buffer=False, **tf_kw)
+print_summary(perf_times, header='np.fft.rfft' + arg_signature(vec_real))
+
+if run_scipy:
+    perf_times = time_func(scipy.fftpack.rfft, vec_real, dict(overwrite_x=True), **tf_kw)
+    print_summary(perf_times, header='scipy.fftpack.rfft, overwrite_x=True' + arg_signature(vec_real))
