@@ -1,13 +1,11 @@
 from __future__ import print_function
 from platform import system
+import os
 
 IS_WIN = system() == 'Windows'
 IS_LIN = system() == 'Linux'
 IS_MAC = system() == 'Darwin'
 IS_UNIX = IS_LIN or IS_MAC
-
-EXE_DIR = 'Scripts' if IS_WIN else 'bin'
-EXE_EXTNSN = '.exe' if IS_WIN else ''
 
 from os import getcwd, chdir, environ
 from os.path import dirname, exists, join
@@ -172,6 +170,9 @@ parser.add_argument('-p', '--overwrite-x', default=False, action='store_true',
                     help='Allow overwriting input array')
 parser.add_argument('-s', '--shape', default=None,
                     help='FFT shape, dimensions separated by comma')
+parser.add_argument('-c', '--cached', default=False, action='store_true',
+                    help='Set this option for 1D FFT')
+parser.add_argument('-P', '--path', default='', help='Path to FFT bench binaries')
 
 args = parser.parse_args()
 if args.shape is not None:
@@ -190,10 +191,15 @@ if args.shape is not None:
         raise Exception('Unsupported FFT shape')
 
 in_place = 'in' if args.overwrite_x else 'out'
-cached = 'c' if args.type == 'fft' else 'nc'
+cached = 'c' if args.cached else 'nc'
 domain = 'r' if args.type == 'rfft' else 'c'
 problem = 'fft' if args.type == 'rfft' else args.type
 exe_name = f'{problem}_{domain}dp-{in_place}-{cached}.exe'
+
+if os.path.isdir(args.path):
+    exe_name = os.path.join(args.path, exe_name)
+else:
+    exe_name = args.path
 
 params = {
     'fft': params_1d,
