@@ -172,7 +172,7 @@ parser.add_argument('-s', '--shape', default=None,
                     help='FFT shape, dimensions separated by comma')
 parser.add_argument('-c', '--cached', default=False, action='store_true',
                     help='Set this option for 1D FFT')
-parser.add_argument('-P', '--path', default='', help='Path to FFT bench binaries')
+parser.add_argument('-P', '--path', default=None, help='Path to FFT bench binaries')
 
 args = parser.parse_args()
 if args.shape is not None:
@@ -196,10 +196,11 @@ domain = 'r' if args.type == 'rfft' else 'c'
 problem = 'fft' if args.type == 'rfft' else args.type
 exe_name = f'{problem}_{domain}dp-{in_place}-{cached}.exe'
 
-if os.path.isdir(args.path):
-    exe_name = os.path.join(args.path, exe_name)
-else:
-    exe_name = args.path
+if args.path:
+    if os.path.isdir(args.path):
+        exe_name = os.path.join(args.path, exe_name)
+    else:
+        exe_name = args.path
 
 params = {
     'fft': params_1d,
