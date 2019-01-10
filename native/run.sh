@@ -1,6 +1,6 @@
 #!/bin/bash -x
 
-for f in *.exe;
+for f in bin/*;
 do
     ./$f
 done

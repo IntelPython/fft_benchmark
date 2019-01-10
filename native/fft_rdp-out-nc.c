@@ -67,6 +67,7 @@ int main() {
             assert(status == 0);
 
             // copy superfluous harmonics
+#pragma omp parallel for simd
             for (k_dest = N/2 + 1; k_dest < N; k_dest++) {
                 long k_src = (N - k_dest) % N;
                 buf[k_dest].real = buf[k_src].real;

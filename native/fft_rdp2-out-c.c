@@ -76,6 +76,7 @@ int main() {
             assert(status == 0);
 
             // copy superfluous harmonics
+#pragma omp parallel for simd
             for (k_comp = N, k_dest = 0; k_dest < N; k_dest++, k_comp--) {
                 double re, im;
 
