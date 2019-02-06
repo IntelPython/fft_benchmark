@@ -40,7 +40,7 @@ int main() {
 
     warm_up_threads();
 
-    for(si=0; si < samps; time_tot=0, si++) {
+    for(si = 0; si < samps; time_tot=0, si++) {
         for(it = -1; it <reps;  it++) {
             long k_dest;
 
@@ -87,10 +87,11 @@ int main() {
 
 #include "print_buf.inc"
 
-    mkl_free(buf);
     err = vslDeleteStream(&stream);
     assert(err == VSL_STATUS_OK);
 
+    mkl_free(buf);
     mkl_free(x);
+
     return 0;
 }

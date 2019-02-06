@@ -23,7 +23,7 @@ int main() {
     moment_t time_tot = 0;
     int i, it, reps = 0, N = 0, samps = 0, si;
 
-#define DESCRIPTION_STR "Real double, not in-place, cached"
+#define DESCRIPTION_STR "Real double, not in-place, not cached"
 #include "read_n_echo_env.inc"
 
     err = vslNewStream(&stream, VSL_BRNG_MT19937, SEED);
@@ -41,56 +41,38 @@ int main() {
     warm_up_threads();
 
     for(si = 0; si < samps; time_tot=0, si++) {
-        t0 = moment_now();
-
-        status = DftiCreateDescriptor(
-            &hand,
-            DFTI_DOUBLE,
-            DFTI_REAL,
-            1,
-            N);
-        assert(status == 0);
-
-        status = DftiSetValue(hand, DFTI_CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX);
-        assert(status == 0);
-
-        status = DftiSetValue(hand, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
-        assert(status == 0);
-
-        status = DftiCommitDescriptor(hand);
-        assert(status == 0);
-
-        t1 = moment_now();
-        time_tot += t1 - t0;
-
-        for(it = -1; it < reps;  it++) {
+        for(it = -1; it <reps;  it++) {
             long k_dest;
 
             t0 = moment_now();
 
+            status = DftiCreateDescriptor(
+                &hand,
+                DFTI_DOUBLE,
+                DFTI_REAL,
+                1,
+                N);
+            assert(status == 0);
+
+            status = DftiSetValue(hand, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
+            assert(status == 0);
+
+            status = DftiSetValue(hand, DFTI_CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX);
+            assert(status == 0);
+
+            status = DftiCommitDescriptor(hand);
+            assert(status == 0);
+
             status = DftiComputeForward(hand, x, buf);
             assert(status == 0);
 
-            // copy superfluous harmonics
-#pragma omp parallel for simd
-            for (k_dest = N/2 + 1; k_dest < N; k_dest++) {
-                long k_src = (N - k_dest) % N;
-                buf[k_dest].real = buf[k_src].real;
-                buf[k_dest].imag = -buf[k_src].imag;
-            }
+            status = DftiFreeDescriptor(&hand);
+            assert(status == 0);
 
             t1 = moment_now();
 
             if (it >= 0) time_tot += t1 - t0;
         }
-
-        t0 = moment_now();
-
-        status = DftiFreeDescriptor(&hand);
-        assert(status == 0);
-
-        t1 = moment_now();
-        time_tot += t1 - t0;
 
         printf("%.5g\n", seconds_from_moment(time_tot));
     }
