@@ -101,7 +101,7 @@ def time_func(func, arg_array, keywords, batch_size=16, repetitions=24, refresh_
             t1 = now()
             time_tot += time_delta(t0, t1)
         #
-        times_list[i] = (time_tot/actual_batch_size) * batch_size
+        times_list[i] = time_tot / actual_batch_size
     gc.enable()
     return times_list
 

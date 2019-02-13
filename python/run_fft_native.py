@@ -170,6 +170,8 @@ parser.add_argument('-p', '--overwrite-x', default=False, action='store_true',
                     help='Allow overwriting input array')
 parser.add_argument('-s', '--shape', default=None,
                     help='FFT shape, dimensions separated by comma')
+parser.add_argument('-d', '--domain', default='complex',
+                    choices=['real', 'complex'])
 parser.add_argument('-c', '--cached', default=False, action='store_true',
                     help='Set this option for 1D FFT')
 parser.add_argument('-P', '--path', default=None, help='Path to FFT bench binaries')
@@ -192,8 +194,8 @@ if args.shape is not None:
 
 in_place = 'in' if args.overwrite_x else 'out'
 cached = 'c' if args.cached else 'nc'
-domain = 'r' if args.type == 'rfft' else 'c'
-problem = 'fft' if args.type == 'rfft' else args.type
+domain = 'r' if args.type == 'rfft' else args.domain[0]
+problem = args.type
 exe_name = f'{problem}_{domain}dp-{in_place}-{cached}.exe'
 
 if args.path:
@@ -203,10 +205,12 @@ if args.path:
         exe_name = args.path
 
 params = {
+    'rfft': params_1d,
     'fft': params_1d,
     'fft2': params_2d,
     'fft3': params_3d
 }
 header, perf_times = native_perf_times(exe_name, params[problem])
+perf_times /= int(common_env_vars.get('REPS'))
 print_info(header, perf_times)
 
