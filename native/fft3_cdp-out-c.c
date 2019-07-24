@@ -115,15 +115,17 @@ int main() {
         status = DftiFreeDescriptor(&hand);
         assert(status == 0);
 
+        if (si == 0) {
+#include "print_buf.inc"
+        }
+
+        mkl_free(buf);
+
         t1 = moment_now();
         time_tot += t1 - t0;
 
         printf("%.5g\n", seconds_from_moment(time_tot));
     }
-
-#include "print_buf.inc"
-
-    mkl_free(buf);
 
     err = vslDeleteStream(&stream);
     assert(err == VSL_STATUS_OK);
