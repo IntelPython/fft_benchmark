@@ -26,14 +26,14 @@ int main() {
 #define DESCRIPTION_STR "Real double, not in-place, not cached"
 #include "read_n_echo_env.inc"
 
+    x = (double *) mkl_malloc(N * sizeof(double), 64);
+    assert(x);
+
     err = vslNewStream(&stream, VSL_BRNG_MT19937, SEED);
     assert(err == VSL_STATUS_OK);
 
     err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, N, x, d_zero, d_one);
     assert(err == VSL_STATUS_OK);
-
-    buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
-    assert(buf);
 
     warm_up_threads();
 
@@ -43,8 +43,8 @@ int main() {
 
             t0 = moment_now();
 
-            x = (double *) mkl_malloc(N * sizeof(double), 64);
-            assert(x);
+            buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
+            assert(buf);
 
             status = DftiCreateDescriptor(
                 &hand,
@@ -76,6 +76,10 @@ int main() {
 
             status = DftiFreeDescriptor(&hand);
             assert(status == 0);
+
+            if (si == 0 && it == -1) {
+#include "print_buf.inc"
+            }
 
             mkl_free(buf);
 

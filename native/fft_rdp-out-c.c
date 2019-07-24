@@ -89,6 +89,10 @@ int main() {
         status = DftiFreeDescriptor(&hand);
         assert(status == 0);
 
+        if (si == 0) {
+#include "print_buf.inc"
+        }
+
         mkl_free(buf);
 
         t1 = moment_now();
@@ -96,8 +100,6 @@ int main() {
 
         printf("%.5g\n", seconds_from_moment(time_tot));
     }
-
-#include "print_buf.inc"
 
     err = vslDeleteStream(&stream);
     assert(err == VSL_STATUS_OK);

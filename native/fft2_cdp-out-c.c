@@ -115,6 +115,10 @@ int main() {
         status = DftiFreeDescriptor(&hand);
         assert(status == 0);
 
+        if (si == 0) {
+#include "print_buf.inc"
+        }
+
         mkl_free(buf);
 
         t1 = moment_now();
