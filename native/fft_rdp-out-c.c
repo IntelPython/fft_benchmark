@@ -35,13 +35,13 @@ int main() {
     err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, N, x, d_zero, d_one);
     assert(err == VSL_STATUS_OK);
 
-    buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
-    assert(buf);
-
     warm_up_threads();
 
     for(si = 0; si < samps; time_tot=0, si++) {
         t0 = moment_now();
+
+        buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
+        assert(buf);
 
         status = DftiCreateDescriptor(
             &hand,
@@ -89,6 +89,8 @@ int main() {
         status = DftiFreeDescriptor(&hand);
         assert(status == 0);
 
+        mkl_free(buf);
+
         t1 = moment_now();
         time_tot += t1 - t0;
 
@@ -100,7 +102,6 @@ int main() {
     err = vslDeleteStream(&stream);
     assert(err == VSL_STATUS_OK);
 
-    mkl_free(buf);
     mkl_free(x);
 
     return 0;

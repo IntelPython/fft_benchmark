@@ -29,9 +29,6 @@ int main() {
     err = vslNewStream(&stream, VSL_BRNG_MT19937, SEED);
     assert(err == VSL_STATUS_OK);
 
-    x = (double *) mkl_malloc(N * sizeof(double), 64);
-    assert(x);
-
     err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, N, x, d_zero, d_one);
     assert(err == VSL_STATUS_OK);
 
@@ -45,6 +42,9 @@ int main() {
             long k_dest;
 
             t0 = moment_now();
+
+            x = (double *) mkl_malloc(N * sizeof(double), 64);
+            assert(x);
 
             status = DftiCreateDescriptor(
                 &hand,
@@ -77,6 +77,8 @@ int main() {
             status = DftiFreeDescriptor(&hand);
             assert(status == 0);
 
+            mkl_free(buf);
+
             t1 = moment_now();
 
             if (it >= 0) time_tot += t1 - t0;
@@ -85,12 +87,9 @@ int main() {
         printf("%.5g\n", seconds_from_moment(time_tot));
     }
 
-#include "print_buf.inc"
-
     err = vslDeleteStream(&stream);
     assert(err == VSL_STATUS_OK);
 
-    mkl_free(buf);
     mkl_free(x);
 
     return 0;

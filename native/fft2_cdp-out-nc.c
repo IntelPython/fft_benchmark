@@ -63,15 +63,15 @@ int main() {
     strides[1] = N2;
     strides[2] = 1;
 
-    buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
-    assert(buf);
-
     warm_up_threads();
 
     for(si=0; si < samps; time_tot=0, si++) {
 
         for(it = -1; it <reps;  it++) {
             t0 = moment_now();
+
+            buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
+            assert(buf);
 
             status = DftiCreateDescriptor(
                 &hand,
@@ -104,6 +104,8 @@ int main() {
             status = DftiFreeDescriptor(&hand);
             assert(status == 0);
 
+            mkl_free(buf);
+
             t1 = moment_now();
 
             if (it >= 0) time_tot += t1 - t0;
@@ -111,10 +113,6 @@ int main() {
 
         printf("%.5g\n", seconds_from_moment(time_tot));
     }
-
-#include "print_buf.inc"
-
-    mkl_free(buf);
 
     err = vslDeleteStream(&stream);
     assert(err == VSL_STATUS_OK);
