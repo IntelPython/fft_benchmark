@@ -3,74 +3,38 @@
 #include <stdlib.h>
 #include "moments.h"
 #include "mkl.h"
-#include "omp.h"
+#include "fft_bench.h"
 
-#define SEED 7777
-
-#include "utils.inc"
-
-int main() {
+double *fft2_cdp_out_nc(const struct bench_options *opts) {
     /* Pointer to input/output data */
     MKL_Complex16 *x = 0, *buf = 0;
     /* Execution status */
-    MKL_LONG status = 0, err = 0;
+    MKL_LONG status = 0;
     DFTI_DESCRIPTOR_HANDLE hand = 0;
-    VSLStreamStatePtr stream;
-    double d_zero = 0.0, d_one = 1.0;
 
-    double *re_vec = 0, *im_vec = 0;
     moment_t t0, t1;
     moment_t time_tot = 0;
-    int i, it, reps = 0, samps = 0, si;
-    size_t N1 = 0, N2 = 0, N = 0;
-    MKL_LONG dims[2];
-    MKL_LONG strides[3];
+    int i, it, si;
+    MKL_LONG n, strides[3];
 
-#define DESCRIPTION_STR "Complex double, out-of-place, non-cached"
-#include "read2_n_echo_env.inc"
+    double *times = (double *) malloc(opts->outer_loops * sizeof(double));
 
-    N = N1 * N2;
+    n = opts->shape[0] * opts->shape[1];
+    assert(n > 0);
 
-    err = vslNewStream(&stream, VSL_BRNG_MT19937, SEED);
-    assert(err == VSL_STATUS_OK);
-
-    dims[0] = N1;  dims[1] = N2;
-    N = N1 * N2;
-    assert( N > 0);
     /* input matrix */
-    re_vec = (double *) mkl_malloc(N * sizeof(double), 64);
-    assert(re_vec);
-    im_vec = (double *) mkl_malloc(N * sizeof(double), 64);
-    assert(im_vec);
-
-    x = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
-    assert(x);
-
-    err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, N, re_vec, d_zero, d_one);
-    assert(err == VSL_STATUS_OK);
-
-    err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, N, im_vec, d_zero, d_one);
-    assert(err == VSL_STATUS_OK);
-
-    for(i=0; i < N; i++) {
-        x[i].real = re_vec[i];
-        x[i].imag = im_vec[i];
-    }
-    mkl_free(re_vec);
-    mkl_free(im_vec);
+    x = zrandn(n, opts->brng, opts->seed);
 
     strides[0] = 0;
-    strides[1] = N2;
+    strides[1] = opts->shape[1];
     strides[2] = 1;
 
-    warm_up_threads();
+    for(si=0; si < opts->outer_loops; time_tot=0, si++) {
 
-    for(si=0; si < samps; time_tot=0, si++) {
-
-        for(it = -1; it <reps;  it++) {
+        for(it = -1; it < opts->inner_loops; it++) {
             t0 = moment_now();
 
-            buf = (MKL_Complex16 *) mkl_malloc(N * sizeof(MKL_Complex16), 64);
+            buf = (MKL_Complex16 *) mkl_malloc(n * sizeof(MKL_Complex16), 64);
             assert(buf);
 
             status = DftiCreateDescriptor(
@@ -78,7 +42,7 @@ int main() {
                 DFTI_DOUBLE,
                 DFTI_COMPLEX,
                 2,
-                dims);
+                opts->shape);
             assert(status == 0);
 
             status = DftiSetValue(hand, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
@@ -92,7 +56,7 @@ int main() {
             status = DftiSetValue(hand, DFTI_FORWARD_SCALE, 1.0);
             assert(status == 0);
 
-            status = DftiSetValue(hand, DFTI_BACKWARD_SCALE, 1.0/(N1 * N2));
+            status = DftiSetValue(hand, DFTI_BACKWARD_SCALE, 1.0 / n);
             assert(status == 0);
 
             status = DftiCommitDescriptor(hand);
@@ -104,8 +68,8 @@ int main() {
             status = DftiFreeDescriptor(&hand);
             assert(status == 0);
 
-            if (si == 0 && it == -1) {
-#include "print_buf.inc"
+            if (si == 0 && it == -1 && opts->verbose && buf && n <= 10) {
+                zprint(n, buf);
             }
 
             mkl_free(buf);
@@ -115,13 +79,10 @@ int main() {
             if (it >= 0) time_tot += t1 - t0;
         }
 
-        printf("%.5g\n", seconds_from_moment(time_tot));
+        times[si] = seconds_from_moment(time_tot / opts->inner_loops);
     }
-
-    err = vslDeleteStream(&stream);
-    assert(err == VSL_STATUS_OK);
 
     mkl_free(x);
 
-    return 0;
+    return times;
 }

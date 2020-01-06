@@ -5,20 +5,19 @@ BENCHMARKS = fft_cdp-in-c fft_cdp-in-nc fft_cdp-out-c \
 	     fft3_cdp-in-c fft3_cdp-in-nc fft2_cdp-out-c \
 	     fft2_cdp-out-nc fft3_cdp-out-c fft3_cdp-out-nc
 
+SOURCES = fft_bench.c fft2_cdp-in-c.c fft2_cdp-in-nc.c fft2_cdp-out-c.c \
+	  fft2_cdp-out-nc.c
+
 CC = icc
 CFLAGS = -m64 -fPIC -fp-model strict -O3 -g -fomit-frame-pointer \
 	 -DNDEBUG -qopenmp -xSSE4.2 -axCORE-AVX2,COMMON-AVX512 \
-	 -lmkl_rt
+	 -lmkl_rt -DDEBUG -Wall -pedantic
 
-CINCLUDE := $(addprefix -I,$(CINCLUDE))
-
-all: $(addsuffix .exe,$(addprefix bin/,$(BENCHMARKS)))
+all: fft_bench
 
 clean:
-	rm -rf bin
+	rm -f *.o fft_bench
 
-bin:
-	mkdir -p bin
+fft_bench: $(SOURCES:.c=.o)
+	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
 
-bin/%.exe: %.c | bin
-	$(CC) $< $(CFLAGS) $(CINCLUDE) $(LDFLAGS) -o $@
