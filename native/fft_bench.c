@@ -15,6 +15,13 @@
 
 #define SEED 7777
 
+#define CHECK_DFTI_STATUS(status, msg, ...) do { \
+    if (status && !DftiErrorClass((status), DFTI_NO_ERROR)) { \
+        error(1, 0, msg ": %s", ##__VA_ARGS__, DftiErrorMessage((status))); \
+        return status; \
+    } \
+} while (0)
+
 static inline void warm_up_threads() {
     int i;
     unsigned int *x = malloc(mkl_get_max_threads() * sizeof(int));
@@ -71,11 +78,14 @@ size_t parse_shape(const char *strsize, MKL_LONG **buf) {
 char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
     char *buf;
     size_t nbytes = 0, pos = 0, i = 0;
+
+    if (shape == NULL) return NULL;
+
     for (i = 0; i < ndims; i++) {
         nbytes += snprintf(NULL, 0, "%ldx", shape[i]);
     }
 
-    buf = (char *) malloc(nbytes);
+    buf = (char *) mkl_malloc(nbytes, 64);
     for (i = 0; i < ndims; i++) {
         pos += snprintf(buf + pos, nbytes - pos, "%ld", shape[i]);
         if (i < ndims - 1) buf[pos++] = 'x';
@@ -154,24 +164,27 @@ MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
         status = DftiCreateDescriptor(hand, DFTI_DOUBLE, DFTI_COMPLEX,
                                       ndims, shape);
     }
-    if (status != 0) return status;
+    CHECK_DFTI_STATUS(status, "could not create DFTI descriptor");
 
     if (!inplace) {
         status = DftiSetValue(*hand, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
-        if (status != 0) return status;
+        CHECK_DFTI_STATUS(status, "could not set DFTI_PLACEMENT");
     }
 
     status = DftiSetValue(*hand, DFTI_INPUT_STRIDES, strides);
-    if (status != 0) return status;
+    CHECK_DFTI_STATUS(status, "could not set DFTI_INPUT_STRIDES to %s",
+                      shape_to_str(ndims + 1, strides));
 
     status = DftiSetValue(*hand, DFTI_FORWARD_SCALE, forward_scale);
-    if (status != 0) return status;
+    CHECK_DFTI_STATUS(status, "could not set DFTI_FORWARD_SCALE to %f",
+                      forward_scale);
 
     status = DftiSetValue(*hand, DFTI_BACKWARD_SCALE, backward_scale);
-    if (status != 0) return status;
+    CHECK_DFTI_STATUS(status, "could not set DFTI_BACKWARD_SCALE to %f",
+                      backward_scale);
 
     status = DftiCommitDescriptor(*hand);
-    if (status != 0) return status;
+    CHECK_DFTI_STATUS(status, "could not commit DFTI descriptor");
 
     return 0;
 }
@@ -191,7 +204,7 @@ int main(int argc, char *argv[]) {
     
     const char *prefix = "Native-C";
     const char *dtype = NULL;
-    const char *strsize = NULL;
+    char *strsize = NULL;
     const char *problem = NULL;
     static const char *problems[] = {0, "fft", "fft2", "fftn"};
 
@@ -384,10 +397,10 @@ int main(int argc, char *argv[]) {
             } else {
                 status = DftiComputeForward(hand, x, buf);
             }
-            assert(status == 0);
+            CHECK_DFTI_STATUS(status, "could not compute FFT");
             if (!cached) {
                 status = DftiFreeDescriptor(&hand);
-                assert(status == 0);
+                CHECK_DFTI_STATUS(status, "could not free DFTI descriptor");
             }
             t1 = moment_now();
 
@@ -397,7 +410,7 @@ int main(int argc, char *argv[]) {
         t0 = moment_now();
         if (cached) {
             status = DftiFreeDescriptor(&hand);
-            assert(status == 0);
+            CHECK_DFTI_STATUS(status, "could not free DFTI descriptor");
         }
         t1 = moment_now();
         time_tot += t1 - t0;
@@ -423,4 +436,5 @@ int main(int argc, char *argv[]) {
 
     mkl_free(times);
     mkl_free(shape);
+    mkl_free(strsize);
 }
