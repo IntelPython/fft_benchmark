@@ -16,8 +16,10 @@ struct bench_options {
     MKL_INT brng;
     MKL_UINT seed;
 
-    bool verbose;
-    MKL_LONG shape[];
+    /* Benchmark options */
+    bool inplace, cached, verbose;
+    size_t ndims;
+    MKL_LONG *shape;
 };
 
 /*
@@ -25,7 +27,7 @@ struct bench_options {
  */
 struct bench {
     /* function returning an array of timings */
-    double *(*func)(const struct bench_options *);
+    double *(*func)(struct bench_options);
 
     /* number of dimensions required in shape */
     size_t ndims;
@@ -45,6 +47,16 @@ struct bench {
 };
 
 struct bench_options *alloc_bench_options(size_t ndims);
+
+/*
+ * Get the total number of elements in an array with the given shape.
+ */
+MKL_LONG shape_prod(size_t ndims, const MKL_LONG *shape);
+
+/*
+ * Get the strides for an array with the given shape, assuming C-contiguity.
+ */
+MKL_LONG *shape_strides(size_t ndims, const MKL_LONG *shape);
 
 /*
  * Print the first n elements of the MKL_Complex16 array x.

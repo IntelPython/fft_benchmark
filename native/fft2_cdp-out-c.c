@@ -17,7 +17,7 @@ double *fft2_cdp_out_c(const struct bench_options *opts) {
     int i, it, si;
     MKL_LONG n, strides[3];
 
-    double *times = (double *) malloc(opts->outer_loops * sizeof(double));
+    double *times = (double *) mkl_malloc(opts->outer_loops * sizeof(double), 64);
 
     n = opts->shape[0] * opts->shape[1];
     assert(n > 0);

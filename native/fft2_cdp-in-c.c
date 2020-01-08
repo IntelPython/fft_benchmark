@@ -17,7 +17,7 @@ double *fft2_cdp_in_c(const struct bench_options *opts) {
     int i, it, si;
     MKL_LONG n, strides[3];
 
-    double *times = (double *) malloc(opts->outer_loops * sizeof(double));
+    double *times = (double *) mkl_malloc(opts->outer_loops * sizeof(double), 64);
 
     n = opts->shape[0] * opts->shape[1];
     assert(n > 0);
@@ -42,13 +42,13 @@ double *fft2_cdp_in_c(const struct bench_options *opts) {
         status = DftiSetValue(hand, DFTI_INPUT_STRIDES, strides);
         assert(status == 0);
 
-        status = DftiCommitDescriptor(hand);
-        assert(status == 0);
-
         status = DftiSetValue(hand, DFTI_FORWARD_SCALE, 1.0);
         assert(status == 0);
 
         status = DftiSetValue(hand, DFTI_BACKWARD_SCALE, 1.0 / n);
+        assert(status == 0);
+
+        status = DftiCommitDescriptor(hand);
         assert(status == 0);
 
 //        status = DftiSetValue(hand, DFTI_COMPLEX_STORAGE, DFTI_COMPLEX_COMPLEX);
