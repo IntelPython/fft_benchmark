@@ -13,34 +13,7 @@
 #include "moments.h"
 #include "omp.h"
 
-#if 0
-#include "fft2_cdp-in-c.h"
-#include "fft2_cdp-in-nc.h"
-#include "fft2_cdp-out-c.h"
-#include "fft2_cdp-out-nc.h"
-#endif
-
-#include "fft2.h"
-
 #define SEED 7777
-
-static const struct bench benchmarks[] = {
-#if 0
-    {fft2_cdp_in_c, 2, "fft2", "complex128", true, true},
-    {fft2_cdp_in_nc, 2, "fft2", "complex128", true, false},
-    {fft2_cdp_out_c, 2, "fft2", "complex128", false, true},
-    {fft2_cdp_out_nc, 2, "fft2", "complex128", false, false},
-#endif
-    {fft2, 1, "fft", "complex128", true, true},
-    {fft2, 1, "fft", "complex128", true, false},
-    {fft2, 1, "fft", "complex128", false, true},
-    {fft2, 1, "fft", "complex128", false, false},
-    {fft2, 2, "fft2", "complex128", true, true},
-    {fft2, 2, "fft2", "complex128", true, false},
-    {fft2, 2, "fft2", "complex128", false, true},
-    {fft2, 2, "fft2", "complex128", false, false},
-    {0, 0, 0, 0, 0, 0}
-};
 
 static inline void warm_up_threads() {
     int i;
@@ -53,67 +26,6 @@ static inline void warm_up_threads() {
 
     free(x);
 }
-
-/*
-bench_result_t time_mean_min(struct bench bench, const struct bench_options *opts,
-                             bool verbose) {
-    
-    bench_result_t result;
-    moment_t t0, t1;
-    moment_t min_time = LLONG_MAX;
-    void *buffers = bench.make_args(opts);
-    warm_up_threads();
-
-    for (int i = 0; i < opts->outer_loops; i++) {
-
-        moment_t total_time = 0;
-        if (bench.pre_inner_loop != NULL) {
-            t0 = moment_now();
-            bench.pre_inner_loop(opts, buffers);
-            t1 = moment_now();
-            if (bench.time_pre_post_inner_loop) {
-                total_time += t1 - t0;
-            }
-        }
-
-        for (int j = 0; j < opts->inner_loops; i++) {
-
-            if (bench.copy_args != NULL) {
-                bench.copy_args(opts, buffers);
-            }
-
-            t0 = moment_now();
-            bench.compute(opts, buffers);
-            t1 = moment_now();
-            total_time += t1 - t0;
-
-        }
-        
-        if (bench.post_inner_loop != NULL) {
-            t0 = moment_now();
-            bench.post_inner_loop(opts, buffers);
-            t1 = moment_now();
-            if (bench.time_pre_post_inner_loop) {
-                total_time += t1 - t0;
-            }
-        }
-
-        if (verbose) {
-            printf("@ times[%d] = %.5g\n", i, seconds_from_moment(total_time));
-        }
-
-        if (total_time < min_time) {
-            min_time = total_time;
-        }
-
-    }
-
-    bench.free_args(opts, buffers);
-
-    result.min_time = min_time;
-    return result;
-}
-*/
 
 /*
  * Parse size string, in form of e.g. 1001x2003x1005 -> [1001 2003 1005].
@@ -401,7 +313,6 @@ int main(int argc, char *argv[]) {
     warm_up_threads();
 
     /* Parse size */
-    // struct bench_options opts;
     const char *strplace, *strcache;
     MKL_LONG ndims, *shape;
     ndims = parse_shape(strsize, &shape);
@@ -502,47 +413,4 @@ int main(int argc, char *argv[]) {
 
     mkl_free(times);
     mkl_free(shape);
-
-
-#if 0
-    const struct bench *curr;
-    for (curr = benchmarks; curr->name != NULL; curr++) {
-
-#ifdef DEBUG
-        if (verbose) {
-            printf("# trying %s, cached=%d, =%d, dtype=%s\n",
-                   curr->name, curr->cached, curr->, curr->dtype);
-        }
-#endif
-
-        if (strcmp(curr->name, problem) != 0) continue;
-        if (dtype != NULL && strcmp(curr->dtype, dtype) != 0) continue;
-        if (curr-> != inplace) continue;
-        if (curr->cached != cached) continue;
-
-        if (opts.ndims != curr->ndims) {
-            fprintf(stderr, "error: expected %lu dimensions for problem "
-                            "size, but got %lu\n", curr->ndims, opts.ndims);
-            if (opts.shape != NULL) mkl_free(opts.shape);
-            return EXIT_FAILURE;
-        }
-
-        if (verbose) {
-            fprintf(stderr, "# executing: %s, %s, %s, %s, with "
-                    "inner_loops=%lu, outer_loops=%lu\n", curr->name,
-                    curr->dtype, strplace, strcache, inner_loops, outer_loops);
-        }
-
-        /* Execute benchmark */
-        double *times = curr->func(opts);
-
-        /* Print results */
-        /* TODO take min. */
-        for (int i = 0; i < outer_loops; i++)
-            printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, curr->name, threads,
-                   curr->dtype, strsize, strplace, strcache, times[i]);
-
-        mkl_free(times);
-    }
-#endif
 }
