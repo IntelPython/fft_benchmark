@@ -178,6 +178,7 @@ MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
 
 int main(int argc, char *argv[]) {
 
+    int i;
     bool header = true;
     bool verbose = false;
     bool inplace = false;
@@ -186,10 +187,13 @@ int main(int argc, char *argv[]) {
     size_t goal_outer_loops = 10;
     double time_limit = 10.;
     size_t threads = -1;
+    MKL_LONG n = 0, *strides = NULL;
     
     const char *prefix = "Native-C";
     const char *dtype = NULL;
     const char *strsize = NULL;
+    const char *problem = NULL;
+    static const char *problems[] = {0, "fft", "fft2", "fftn"};
 
     static struct option longopts[] = {
         {"inner-loops", required_argument, NULL, 'i'},
@@ -220,8 +224,7 @@ int main(int argc, char *argv[]) {
             case 't':
                 intarg = strtoul(optarg, &endptr, 0);
                 if (*endptr != '\0' || intarg < 0) {
-                    fprintf(stderr, "error: must be positive integer: %s\n",
-                            optarg);
+                    error(1, 0, "must be positive integer: %s\n", optarg);
                     return EXIT_FAILURE;
                 }
                 break;
@@ -233,8 +236,8 @@ int main(int argc, char *argv[]) {
                     return EXIT_FAILURE;
                 }
                 if (*endptr != '\0' || darg < 0. || darg >= INFINITY) {
-                    fprintf(stderr, "error: must be finite, non-negative "
-                                    "double: %s\n", optarg);
+                    error(1, 0, "must be finite, non-negative double: %s\n",
+                          optarg);
                     return EXIT_FAILURE;
                 }
                 break;
@@ -313,16 +316,29 @@ int main(int argc, char *argv[]) {
     warm_up_threads();
 
     /* Parse size */
-    const char *strplace, *strcache;
     MKL_LONG ndims, *shape;
     ndims = parse_shape(strsize, &shape);
-    if (ndims < 1) {
-        error(1, 0, "number of FFT dimensions must be positive");
-    }
-    strsize = shape_to_str(ndims, shape);
 
+    /* Validate size */
+    if (ndims < 1) error(1, 0, "number of FFT dimensions must be positive");
+    strsize = shape_to_str(ndims, shape);
+    for (i = 0; i < ndims; i++) {
+        if (shape[i] < 1) {
+            error(1, 0, "given shape %s is invalid: shape[%d] = %ld < 1\n",
+                  strsize, i, shape[i]);
+        }
+    }
+
+    /* Get total size and strides */
+    n = shape_prod(ndims, shape);
+    assert(n > 0);
+    strides = shape_strides(ndims, shape);
+
+    /* Printable "in-place" and "cached" */
+    const char *strplace, *strcache;
     strplace = (inplace) ? "in-place" : "out-of-place";
     strcache = (cached) ? "cached" : "not cached";
+    problem = (ndims < 3) ? problems[ndims] : "fftn";
 
     /* Input/output matrices */
     MKL_Complex16 *x = 0, *buf = 0;
@@ -333,15 +349,9 @@ int main(int argc, char *argv[]) {
 
     moment_t t0, t1;
     moment_t time_tot = 0;
-    int i, it, si;
-    MKL_LONG n, *strides;
+    int it, si;
 
     double *times = (double *) mkl_malloc(outer_loops * sizeof(*times), 64);
-
-    /* Get total size and strides */
-    n = shape_prod(ndims, shape);
-    assert(n > 0);
-    strides = shape_strides(ndims, shape);
 
     /* Generate input matrix */
     x = zrandn(n, VSL_BRNG_MT19937, SEED);
@@ -394,7 +404,7 @@ int main(int argc, char *argv[]) {
 
         times[si] = seconds_from_moment(time_tot / inner_loops);
         if (verbose) {
-            printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, "fft", threads,
+            printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
                    "complex128", strsize, strplace, strcache, times[si]);
         }
 
@@ -408,7 +418,7 @@ int main(int argc, char *argv[]) {
     mkl_free(x);
 
     if (!verbose) for (i = 0; i < outer_loops; i++)
-        printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, "fft", threads,
+        printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
                "complex128", strsize, strplace, strcache, times[i]);
 
     mkl_free(times);
