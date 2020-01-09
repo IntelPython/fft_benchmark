@@ -1,4 +1,7 @@
-## Set of native benchmarks for 1D FFT 
+# Native benchmark code for MKL DFTI
+
+- To compile, source compiler and run `make`.
+- Run with `./fft_bench`.
 
 #### Compilation
 *  source compiler, run `./compiler_all.sh`, which will create `*.exe` files in `build/` directory.
