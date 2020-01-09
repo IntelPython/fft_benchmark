@@ -36,7 +36,7 @@
 "                           understood dtypes, use '-d help'.\n" \
 "                           (default: %s)\n" \
 "  -r, --rfft               do not copy superfluous harmonics when FFT\n" \
-"                           output is even-conjugate, i.e. for real inputs\n" \
+"                           output is conjugate-even, i.e. for real inputs\n" \
 "  -P, --in-place           allow overwriting the input buffer with the\n" \
 "                           FFT outputs\n" \
 "  -c, --cached             use the same DFTI descriptor for the same\n" \
