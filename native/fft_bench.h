@@ -3,51 +3,6 @@
 
 #ifndef _FFT_BENCH_H
 #define _FFT_BENCH_H
-
-struct bench_options {
-
-    /* Timing options */
-    int inner_loops;
-    int outer_loops;
-    double time_limit;
-    int goal_outer_loops;
-
-    /* Input data generation options */
-    MKL_INT brng;
-    MKL_UINT seed;
-
-    /* Benchmark options */
-    bool inplace, cached, verbose;
-    size_t ndims;
-    MKL_LONG *shape;
-};
-
-/*
- * data structure to hold definition for FFT benchmarks
- */
-struct bench {
-    /* function returning an array of timings */
-    double *(*func)(struct bench_options);
-
-    /* number of dimensions required in shape */
-    size_t ndims;
-
-    /* name to report (e.g. fft, fft2, fft3, rfft) */
-    char *name;
-
-    /* dtype like numpy (e.g. float64 for "double",
-     * complex128 for "MKL_Complex16") */
-    char *dtype;
-
-    /* allow overwriting buffers? */
-    bool in_place;
-
-    /* reuse DFTI descriptor in inner loops? */
-    bool cached;
-};
-
-struct bench_options *alloc_bench_options(size_t ndims);
-
 /*
  * Get the total number of elements in an array with the given shape.
  */
