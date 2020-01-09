@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2017-2020 Intel Corporation.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
 #include <ctype.h>
 #include <error.h>
 #include <errno.h>
@@ -21,6 +27,37 @@
         return status; \
     } \
 } while (0)
+
+#define HELP_STR "Benchmark FFT using Intel(R) MKL DFTI.\n\n" \
+"FFT problem arguments:\n" \
+"  -t, --threads=THREADS    use THREADS threads for FFT execution\n" \
+"                           (default: use MKL's default)\n" \
+"  -d, --dtype=DTYPE        use DTYPE as the FFT domain. For a list of\n" \
+"                           understood dtypes, use '-d help'.\n" \
+"                           (default: %s)\n" \
+"  -r, --rfft               do not copy superfluous harmonics when FFT\n" \
+"                           output is even-conjugate, i.e. for real inputs\n" \
+"  -P, --in-place           allow overwriting the input buffer with the\n" \
+"                           FFT outputs\n" \
+"  -c, --cached             use the same DFTI descriptor for the same\n" \
+"                           outer loop, i.e. \"cache\" the descriptor\n" \
+"\n" \
+"Timing arguments:\n" \
+"  -i, --inner-loops=IL     time the benchmark IL times for each printed\n" \
+"                           measurement. Copies are not included in the\n" \
+"                           measurements. (default: %d)\n" \
+"  -o, --outer-loops=OL     print OL measurements. (default: %d)\n" \
+"\n" \
+"Output arguments:\n" \
+"  -p, --prefix=PREFIX      output PREFIX as the first value in outputs\n" \
+"                           (default: '%s')\n" \
+"  -H, --no-header          do not output CSV header. This can be useful\n" \
+"                           if running multiple benchmarks back-to-back.\n" \
+"  -h, --help               print this message and exit\n" \
+"\n" \
+"The size argument specifies the input matrix size as a tuple of positive\n" \
+"decimal integers, delimited by any non-digit. For example, both\n" \
+"(101, 203, 305) and 101x203x305 denote the same 3D FFT.\n"
 
 struct dtype {
     /* float or double? */
@@ -306,6 +343,7 @@ int main(int argc, char *argv[]) {
         {"in-place", no_argument, NULL, 'P'},
         {"cached", no_argument, NULL, 'c'},
         {"rfft", no_argument, NULL, 'r'},
+        {"help", no_argument, NULL, 'h'},
         {0, 0, 0, 0}
     };
 
@@ -353,7 +391,8 @@ int main(int argc, char *argv[]) {
                 header = false;
                 break;
             case 'h':
-                fprintf(stderr, "usage: %s [args] SIZE\n", argv[0]);
+                printf("usage: %s [args] size\n", argv[0]);
+                printf(HELP_STR, "complex128", 16, 5, "Native-C");
                 return EXIT_SUCCESS;
             case 'P':
                 inplace = true;
@@ -390,6 +429,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Parse and validate dtype */
+    const struct dtype *dtype = parse_dtype(strdtype);
+    if (dtype == NULL) {
+        fprintf(stderr, "%s: dtype '%s' is unknown. Try one of",
+                argv[0], strdtype);
+        for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
+            fprintf(stderr, " '%s'", VALID_DTYPES[i].names[0]);
+        }
+        fprintf(stderr, ".\n");
+        return EXIT_FAILURE;
+    }
+    strdtype = dtype->names[0];
+
+    /* Check if a size was passed at all */
     if (optind >= argc) {
         error(1, 0, "no FFT size specified");
         return EXIT_FAILURE;
@@ -427,26 +480,13 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Parse and validate dtype */
-    const struct dtype *dtype = parse_dtype(strdtype);
-    if (dtype == NULL) {
-        fprintf(stderr, "%s: dtype '%s' is unknown. Try one of",
-                argv[0], strdtype);
-        for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
-            fprintf(stderr, " '%s'", VALID_DTYPES[i].names[0]);
-        }
-        fprintf(stderr, ".\n");
-        return EXIT_FAILURE;
-    }
-    strdtype = dtype->names[0];
-
     if (rfft && dtype->domain != DFTI_REAL) {
         error(1, 0, "--rfft makes no sense for an FFT of complex inputs. "
                     "The FFT output will not be conjugate even, so the "
                     "whole output matrix must be computed!");
     }
 
-    if (!rfft && ndims > 1) {
+    if (!rfft && dtype->domain == DFTI_REAL && ndims > 1) {
         error(1, 0, "Copying extra harmonics in the conjugate-even output of "
                     "FFT of real inputs of dimension greater than 1 is "
                     "currently unsupported. Try using --rfft option?");
