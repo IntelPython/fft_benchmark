@@ -416,10 +416,8 @@ int main(int argc, char *argv[]) {
         time_tot += t1 - t0;
 
         times[si] = seconds_from_moment(time_tot / inner_loops);
-        if (verbose) {
-            printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
-                   "complex128", strsize, strplace, strcache, times[si]);
-        }
+        printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
+               "complex128", strsize, strplace, strcache, times[si]);
 
     }
 
@@ -429,10 +427,6 @@ int main(int argc, char *argv[]) {
 
     mkl_free(buf);
     mkl_free(x);
-
-    if (!verbose) for (i = 0; i < outer_loops; i++)
-        printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
-               "complex128", strsize, strplace, strcache, times[i]);
 
     mkl_free(times);
     mkl_free(shape);
