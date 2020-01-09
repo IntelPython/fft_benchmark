@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "fft_bench.h"
+#include "mkl.h"
 #include "moments.h"
 #include "omp.h"
 
@@ -21,6 +21,47 @@
         return status; \
     } \
 } while (0)
+
+struct dtype {
+    /* float or double? */
+    enum DFTI_CONFIG_VALUE precision;
+
+    /* real or complex? */
+    enum DFTI_CONFIG_VALUE domain;
+
+    /* size in bytes */
+    size_t size;
+
+    /* names */
+    const char *const *names;
+};
+
+const char *NAMES_FLOAT32[] = {"float32", "float", "f4", 0};
+const char *NAMES_FLOAT64[] = {"float64", "double", "f8", 0};
+const char *NAMES_COMPLEX64[] = {"complex64", "complex float", "c8", 0};
+const char *NAMES_COMPLEX128[] = {"complex128", "complex double", "c16", 0};
+
+const struct dtype VALID_DTYPES[] = {
+    {DFTI_SINGLE, DFTI_REAL, sizeof(float), NAMES_FLOAT32},
+    {DFTI_DOUBLE, DFTI_REAL, sizeof(double), NAMES_FLOAT64},
+    {DFTI_SINGLE, DFTI_COMPLEX, sizeof(MKL_Complex8), NAMES_COMPLEX64},
+    {DFTI_DOUBLE, DFTI_COMPLEX, sizeof(MKL_Complex16), NAMES_COMPLEX128}
+};
+
+const struct dtype *parse_dtype(const char *name) {
+    int i, j;
+    const struct dtype *dtype;
+    const char *dname;
+    for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
+        dtype = &VALID_DTYPES[i];
+        for (j = 0; dtype->names[j] != NULL; j++) {
+            if (strcasecmp(dtype->names[j], name) == 0) {
+                return dtype;
+            }
+        }
+    }
+    return NULL;
+}
 
 static inline void warm_up_threads() {
     int i;
@@ -126,26 +167,34 @@ void dprint(MKL_LONG n, double *x) {
     }
 }
 
-MKL_Complex16 *zrandn(MKL_LONG n, MKL_INT brng, MKL_UINT seed) {
-    MKL_Complex16 *x = (MKL_Complex16 *) drandn(n * 2, brng, seed);
-    assert(x);
-    return x;
-}
-
-double *drandn(MKL_LONG n, MKL_INT brng, MKL_UINT seed) {
+void *randn(const struct dtype *dtype, MKL_LONG n, MKL_INT brng,
+            MKL_UINT seed) {
     MKL_LONG err = 0;
     VSLStreamStatePtr stream;
 
-    double *x = (double *) mkl_malloc(n * sizeof(*x), 64);
+    errno = 0;
+    void *x = (void *) mkl_malloc(n * dtype->size, 64);
+    if (x == NULL) error(1, errno, "failed to allocate %lu bytes for x",
+                         n * dtype->size);
     assert(x);
 
     err = vslNewStream(&stream, brng, seed);
+    if (err != VSL_STATUS_OK) error(1, 0, "vslNewStream failed: %ld", err);
     assert(err == VSL_STATUS_OK);
 
-    err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, n, x, 0., 1.);
+    /* Generate twice as many values for complex arrays */
+    if (dtype->domain == DFTI_COMPLEX) n *= 2;
+
+    if (dtype->precision == DFTI_SINGLE) {
+        err = vsRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, n, x, 0, 1);
+    } else {
+        err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, n, x, 0, 1);
+    }
+    if (err != VSL_STATUS_OK) error(1, 0, "v*RngGaussian failed: %ld", err);
     assert(err == VSL_STATUS_OK);
 
     err = vslDeleteStream(&stream);
+    if (err != VSL_STATUS_OK) error(1, 0, "vslDeleteStream failed: %ld", err);
     assert(err == VSL_STATUS_OK);
 
     return x;
@@ -153,15 +202,15 @@ double *drandn(MKL_LONG n, MKL_INT brng, MKL_UINT seed) {
 
 MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
                                MKL_LONG *shape, MKL_LONG *strides,
-                               double forward_scale, double backward_scale,
-                               bool inplace) {
+                               const struct dtype *dtype, double forward_scale,
+                               double backward_scale, bool inplace) {
 
     MKL_LONG status;
     if (ndims == 1) {
-        status = DftiCreateDescriptor(hand, DFTI_DOUBLE, DFTI_COMPLEX,
+        status = DftiCreateDescriptor(hand, dtype->precision, dtype->domain,
                                       ndims, shape[0]);
     } else {
-        status = DftiCreateDescriptor(hand, DFTI_DOUBLE, DFTI_COMPLEX,
+        status = DftiCreateDescriptor(hand, dtype->precision, dtype->domain,
                                       ndims, shape);
     }
     CHECK_DFTI_STATUS(status, "could not create DFTI descriptor");
@@ -202,10 +251,9 @@ int main(int argc, char *argv[]) {
     size_t threads = -1;
     MKL_LONG n = 0, *strides = NULL;
     
-    const char *prefix = "Native-C";
-    const char *dtype = NULL;
-    char *strsize = NULL;
+    const char *prefix = "Native-C", *strdtype = "complex128";
     const char *problem = NULL;
+    char *strsize = NULL;
     static const char *problems[] = {0, "fft", "fft2", "fftn"};
 
     static struct option longopts[] = {
@@ -258,7 +306,7 @@ int main(int argc, char *argv[]) {
                 prefix = optarg;
                 break;
             case 'd':
-                dtype = optarg;
+                strdtype = optarg;
                 break;
             case 'v':
                 verbose = true;
@@ -313,10 +361,6 @@ int main(int argc, char *argv[]) {
 
     strsize = argv[optind];
 
-    const char *strheader = "prefix,function,threads,dtype,size,"
-                            "place,cached,time";
-    if (header) puts(strheader);
-
     /* Set and warm up threads */
     if (threads > 0) {
         mkl_set_num_threads(threads);
@@ -342,6 +386,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Parse and validate dtype */
+    const struct dtype *dtype = parse_dtype(strdtype);
+    if (dtype == NULL) {
+        fprintf(stderr, "%s: dtype '%s' is unknown. Try one of",
+                argv[0], strdtype);
+        for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
+            fprintf(stderr, " '%s'", VALID_DTYPES[i].names[0]);
+        }
+        fprintf(stderr, ".\n");
+        return EXIT_FAILURE;
+    }
+    strdtype = dtype->names[0];
+
     /* Get total size and strides */
     n = shape_prod(ndims, shape);
     assert(n > 0);
@@ -354,7 +411,7 @@ int main(int argc, char *argv[]) {
     problem = (ndims < 3) ? problems[ndims] : "fftn";
 
     /* Input/output matrices */
-    MKL_Complex16 *x = 0, *buf = 0;
+    void *x = 0, *buf = 0;
 
     /* Execution status */
     MKL_LONG status = 0;
@@ -367,8 +424,12 @@ int main(int argc, char *argv[]) {
     double *times = (double *) mkl_malloc(outer_loops * sizeof(*times), 64);
 
     /* Generate input matrix */
-    x = zrandn(n, VSL_BRNG_MT19937, SEED);
-    buf = (MKL_Complex16 *) mkl_malloc(n * sizeof(*buf), 64);
+    x = randn(dtype, n, VSL_BRNG_MT19937, SEED);
+    buf = mkl_malloc(n * dtype->size, 64);
+
+    const char *strheader = "prefix,function,threads,dtype,size,"
+                            "place,cached,time";
+    if (header) puts(strheader);
 
     /* Execute benchmark */
     for (si = 0; si < outer_loops; si++) {
@@ -376,22 +437,26 @@ int main(int argc, char *argv[]) {
         time_tot = 0;
         if (cached) {
             t0 = moment_now();
-            status = fft_create_descriptor(&hand, ndims, shape, strides, 1.,
-                                           1. / n, inplace);
+            status = fft_create_descriptor(&hand, ndims, shape, strides, dtype,
+                                           1., 1. / n, inplace);
             assert(status == 0);
             t1 = moment_now();
             time_tot += t1 - t0;
         }
 
         for (it = -1; it < inner_loops; it++) {
-            if (inplace) cblas_zcopy(n, x, 1, buf, 1);
+            if (inplace) {
+                /* TODO: is memcpy better than MKL BLAS *copy? */
+                memcpy(buf, x, n * dtype->size);
+            }
 
             t0 = moment_now();
             if (!cached) {
                 status = fft_create_descriptor(&hand, ndims, shape, strides,
-                                               1., 1. / n, inplace);
+                                               dtype, 1., 1. / n, inplace);
                 assert(status == 0);
             }
+            /* TODO: might have to cast to (float *) or (double *) here? */
             if (inplace) {
                 status = DftiComputeForward(hand, buf);
             } else {
@@ -417,7 +482,7 @@ int main(int argc, char *argv[]) {
 
         times[si] = seconds_from_moment(time_tot / inner_loops);
         printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
-               "complex128", strsize, strplace, strcache, times[si]);
+               dtype->names[0], strsize, strplace, strcache, times[si]);
 
     }
 
