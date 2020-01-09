@@ -215,6 +215,12 @@ MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
     }
     CHECK_DFTI_STATUS(status, "could not create DFTI descriptor");
 
+    if (dtype->domain == DFTI_REAL) {
+        status = DftiSetValue(*hand, DFTI_CONJUGATE_EVEN_STORAGE,
+                              DFTI_COMPLEX_COMPLEX);
+        CHECK_DFTI_STATUS(status, "could not set DFTI_CONJUGATE_EVEN_STORAGE");
+    }
+
     if (!inplace) {
         status = DftiSetValue(*hand, DFTI_PLACEMENT, DFTI_NOT_INPLACE);
         CHECK_DFTI_STATUS(status, "could not set DFTI_PLACEMENT");
@@ -238,13 +244,44 @@ MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
     return 0;
 }
 
+void copy_superfluous_harmonics(MKL_LONG ndims, MKL_LONG *shape, MKL_LONG n,
+                                const struct dtype *dtype, void *buf) {
+
+    MKL_LONG k_dest, k_src;
+
+    /* TODO: remove this error message once copy_superfluous_harmonics
+     * supports multiple dimensions */
+    if (ndims != 1) {
+        error(1, 0, "copy_superfluous_harmonics is unimplemented for "
+                    "ndims > 1. Try using --rfft option?");
+    }
+
+    if (dtype->precision == DFTI_SINGLE) {
+        MKL_Complex8 *sbuf = (MKL_Complex8 *) buf;
+
+#pragma omp parallel for simd
+        for (k_dest = n / 2 + 1; k_dest < n; k_dest++) {
+            k_src = (n - k_dest) % n;
+            sbuf[k_dest].real = sbuf[k_src].real;
+            sbuf[k_dest].imag = -sbuf[k_src].imag;
+        }
+    } else {
+        MKL_Complex16 *dbuf = (MKL_Complex16 *) buf;
+
+#pragma omp parallel for simd
+        for (k_dest = n / 2 + 1; k_dest < n; k_dest++) {
+            k_src = (n - k_dest) % n;
+            dbuf[k_dest].real = dbuf[k_src].real;
+            dbuf[k_dest].imag = -dbuf[k_src].imag;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     int i;
-    bool header = true;
-    bool verbose = false;
-    bool inplace = false;
-    bool cached = false;
+    bool header = true, verbose = false, inplace = false, cached = false;
+    bool rfft = false;
     MKL_LONG inner_loops = 16, outer_loops = 5;
     size_t goal_outer_loops = 10;
     double time_limit = 10.;
@@ -268,13 +305,14 @@ int main(int argc, char *argv[]) {
         {"no-header", no_argument, NULL, 'H'},
         {"in-place", no_argument, NULL, 'P'},
         {"cached", no_argument, NULL, 'c'},
+        {"rfft", no_argument, NULL, 'r'},
         {0, 0, 0, 0}
     };
 
     int intarg, opt, optindex = 0;
     char *endptr;
     double darg;
-    while ((opt = getopt_long(argc, argv, "p:d:t:vPch",
+    while ((opt = getopt_long(argc, argv, "p:d:t:vPchr",
                               longopts, &optindex)) != -1) {
 
         /* first pass: parse numeric values and assign other values */
@@ -322,6 +360,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'c':
                 cached = true;
+                break;
+            case 'r':
+                rfft = true;
                 break;
             case '?':
             default:
@@ -399,6 +440,18 @@ int main(int argc, char *argv[]) {
     }
     strdtype = dtype->names[0];
 
+    if (rfft && dtype->domain != DFTI_REAL) {
+        error(1, 0, "--rfft makes no sense for an FFT of complex inputs. "
+                    "The FFT output will not be conjugate even, so the "
+                    "whole output matrix must be computed!");
+    }
+
+    if (!rfft && ndims > 1) {
+        error(1, 0, "Copying extra harmonics in the conjugate-even output of "
+                    "FFT of real inputs of dimension greater than 1 is "
+                    "currently unsupported. Try using --rfft option?");
+    }
+
     /* Get total size and strides */
     n = shape_prod(ndims, shape);
     assert(n > 0);
@@ -425,7 +478,13 @@ int main(int argc, char *argv[]) {
 
     /* Generate input matrix */
     x = randn(dtype, n, VSL_BRNG_MT19937, SEED);
-    buf = mkl_malloc(n * dtype->size, 64);
+
+    /* Real input still has complex output */
+    if (dtype->domain == DFTI_COMPLEX) {
+        buf = mkl_malloc(n * dtype->size, 64);
+    } else {
+        buf = mkl_malloc(n * 2 * dtype->size, 64);
+    }
 
     const char *strheader = "prefix,function,threads,dtype,size,"
                             "place,cached,time";
@@ -463,6 +522,16 @@ int main(int argc, char *argv[]) {
                 status = DftiComputeForward(hand, x, buf);
             }
             CHECK_DFTI_STATUS(status, "could not compute FFT");
+
+            /* for real FFTs, without --rfft option, copy
+             * superfluous harmonics */
+            if (dtype->domain == DFTI_REAL && !rfft) {
+                /* TODO: remove assertion once copy_superfluous_harmonics
+                 * supports more than one dimension */
+                assert(ndims != 1);
+                copy_superfluous_harmonics(ndims, shape, n, dtype, buf);
+            }
+
             if (!cached) {
                 status = DftiFreeDescriptor(&hand);
                 CHECK_DFTI_STATUS(status, "could not free DFTI descriptor");
