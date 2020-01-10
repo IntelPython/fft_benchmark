@@ -3,16 +3,37 @@
 - To compile, source compiler and run `make`.
 - Run with `./fft_bench`.
 
-#### Compilation
-*  source compiler, run `./compiler_all.sh`, which will create `*.exe` files in `build/` directory.
+```
+usage: ./fft_bench [args] size
+Benchmark FFT using Intel(R) MKL DFTI.
 
-#### Execution
+FFT problem arguments:
+  -t, --threads=THREADS    use THREADS threads for FFT execution
+                           (default: use MKL's default)
+  -d, --dtype=DTYPE        use DTYPE as the FFT domain. For a list of
+                           understood dtypes, use '-d help'.
+                           (default: complex128)
+  -r, --rfft               do not copy superfluous harmonics when FFT
+                           output is even-conjugate, i.e. for real inputs
+  -P, --in-place           allow overwriting the input buffer with the
+                           FFT outputs
+  -c, --cached             use the same DFTI descriptor for the same
+                           outer loop, i.e. "cache" the descriptor
 
-* Executables respond to the following environment variable settings:
-  * `REPS` - number of repetitions of the call for a single sample (default 16)
-  * `S` - number of timing samples to report (default 1)
-  * `N` - size of 1D FFT vector
-  * `N1`, `N2` - size of 2D FFT array
-  * `N1`, `N2`, `N3` - size of 3D FFT array
+Timing arguments:
+  -i, --inner-loops=IL     time the benchmark IL times for each printed
+                           measurement. Copies are not included in the
+                           measurements. (default: 16)
+  -o, --outer-loops=OL     print OL measurements. (default: 5)
 
-Use of `REPS` allows to resolve issue timer's granularity. Use of `S` allows for efficient warm-up. Typically, one would use the smallest value in the sample.
+Output arguments:
+  -p, --prefix=PREFIX      output PREFIX as the first value in outputs
+                           (default: 'Native-C')
+  -H, --no-header          do not output CSV header. This can be useful
+                           if running multiple benchmarks back-to-back.
+  -h, --help               print this message and exit
+
+The size argument specifies the input matrix size as a tuple of positive
+decimal integers, delimited by any non-digit. For example, both
+(101, 203, 305) and 101x203x305 denote the same 3D FFT.
+```
