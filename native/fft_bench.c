@@ -73,22 +73,21 @@ struct dtype {
     const char *const *names;
 };
 
-const char *NAMES_FLOAT32[] = {"float32", "float", "f4", 0};
-const char *NAMES_FLOAT64[] = {"float64", "double", "f8", 0};
-const char *NAMES_COMPLEX64[] = {"complex64", "complex float", "c8", 0};
-const char *NAMES_COMPLEX128[] = {"complex128", "complex double", "c16", 0};
+static const char *NAMES_FLOAT32[] = {"float32", "float", "f4", 0};
+static const char *NAMES_FLOAT64[] = {"float64", "double", "f8", 0};
+static const char *NAMES_COMPLEX64[] = {"complex64", "complex float", "c8", 0};
+static const char *NAMES_COMPLEX128[] = {"complex128", "complex double", "c16", 0};
 
-const struct dtype VALID_DTYPES[] = {
+static const struct dtype VALID_DTYPES[] = {
     {DFTI_SINGLE, DFTI_REAL, sizeof(float), NAMES_FLOAT32},
     {DFTI_DOUBLE, DFTI_REAL, sizeof(double), NAMES_FLOAT64},
     {DFTI_SINGLE, DFTI_COMPLEX, sizeof(MKL_Complex8), NAMES_COMPLEX64},
     {DFTI_DOUBLE, DFTI_COMPLEX, sizeof(MKL_Complex16), NAMES_COMPLEX128}
 };
 
-const struct dtype *parse_dtype(const char *name) {
-    int i, j;
+static const struct dtype *parse_dtype(const char *name) {
+    size_t i, j;
     const struct dtype *dtype;
-    const char *dname;
     for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
         dtype = &VALID_DTYPES[i];
         for (j = 0; dtype->names[j] != NULL; j++) {
@@ -121,12 +120,11 @@ static inline void warm_up_threads() {
  * 
  * Returns the number of dimensions actually parsed.
  */
-size_t parse_shape(const char *strsize, MKL_LONG **buf) {
+static size_t parse_shape(const char *strsize, MKL_LONG **buf) {
 
-    int i;
     char *endptr;
     static const size_t initial_size = 8;
-    size_t size;
+    size_t i, size;
 
     if (strsize == NULL) return 0;
 
@@ -153,7 +151,7 @@ size_t parse_shape(const char *strsize, MKL_LONG **buf) {
     return i + 1;
 }
 
-char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
+static char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
     char *buf;
     size_t nbytes = 0, pos = 0, i = 0;
 
@@ -172,15 +170,15 @@ char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
     return buf;
 }
 
-MKL_LONG shape_prod(size_t ndims, const MKL_LONG *shape) {
-    int i;
+static MKL_LONG shape_prod(size_t ndims, const MKL_LONG *shape) {
+    size_t i;
     MKL_LONG prod = 1;
     for (i = 0; i < ndims; i++) prod *= shape[i];
     return prod;
 }
 
-MKL_LONG *shape_strides(size_t ndims, const MKL_LONG *shape) {
-    int i, j;
+static MKL_LONG *shape_strides(size_t ndims, const MKL_LONG *shape) {
+    size_t i, j;
     MKL_LONG *strides = mkl_malloc((ndims + 1) * sizeof(*strides), 64);
     strides[0] = 0;
     for (i = 1; i <= ndims; i++) {
@@ -192,19 +190,33 @@ MKL_LONG *shape_strides(size_t ndims, const MKL_LONG *shape) {
     return strides;
 }
 
-void zprint(MKL_LONG n, MKL_Complex16 *x) {
-    for (int i = 0; i < n; i++) {
-        printf("x[%d] = %.8g + %.8gj\n", i, x[i].real, x[i].imag);
+static void print_array(const struct dtype *dtype, MKL_LONG n, void *x) {
+    if (dtype->precision == DFTI_SINGLE) {
+        float *f = (float *) x;
+        if (dtype->domain == DFTI_REAL) {
+            for (int i = 0; i < n; i++) {
+                printf("x[%d] = %.8g\n", i, f[i]);
+            }
+        } else {
+            for (int i = 0; i < n * 2; i += 2) {
+                printf("x[%d] = %.8g + %.8gj\n", i, f[i], f[i+1]);
+            }
+        }
+    } else {
+        double *d = (double *) x;
+        if (dtype->domain == DFTI_REAL) {
+            for (int i = 0; i < n; i++) {
+                printf("x[%d] = %.8g\n", i, d[i]);
+            }
+        } else {
+            for (int i = 0; i < n * 2; i += 2) {
+                printf("x[%d] = %.8g + %.8gj\n", i, d[i], d[i+1]);
+            }
+        }
     }
 }
 
-void dprint(MKL_LONG n, double *x) {
-    for (int i = 0; i < n; i++) {
-        printf("x[%d] = %.8g\n", i, x[i]);
-    }
-}
-
-void *randn(const struct dtype *dtype, MKL_LONG n, MKL_INT brng,
+static void *randn(const struct dtype *dtype, MKL_LONG n, MKL_INT brng,
             MKL_UINT seed) {
     MKL_LONG err = 0;
     VSLStreamStatePtr stream;
@@ -237,7 +249,8 @@ void *randn(const struct dtype *dtype, MKL_LONG n, MKL_INT brng,
     return x;
 }
 
-MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
+static MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand,
+        MKL_LONG ndims,
                                MKL_LONG *shape, MKL_LONG *strides,
                                const struct dtype *dtype, double forward_scale,
                                double backward_scale, bool inplace) {
@@ -281,10 +294,10 @@ MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand, MKL_LONG ndims,
     return 0;
 }
 
-void copy_superfluous_harmonics(MKL_LONG ndims, MKL_LONG *shape, MKL_LONG n,
+static void copy_superfluous_harmonics(MKL_LONG ndims, MKL_LONG *shape, MKL_LONG n,
                                 const struct dtype *dtype, void *buf) {
 
-    MKL_LONG k_dest, k_src;
+    MKL_LONG i, j;
 
     /* TODO: remove this error message once copy_superfluous_harmonics
      * supports multiple dimensions */
@@ -297,26 +310,26 @@ void copy_superfluous_harmonics(MKL_LONG ndims, MKL_LONG *shape, MKL_LONG n,
         MKL_Complex8 *sbuf = (MKL_Complex8 *) buf;
 
 #pragma omp parallel for simd
-        for (k_dest = n / 2 + 1; k_dest < n; k_dest++) {
-            k_src = (n - k_dest) % n;
-            sbuf[k_dest].real = sbuf[k_src].real;
-            sbuf[k_dest].imag = -sbuf[k_src].imag;
+        for (i = n / 2 + 1; i < n; i++) {
+            j = (n - i) % n;
+            sbuf[i].real = sbuf[j].real;
+            sbuf[i].imag = -sbuf[j].imag;
         }
     } else {
         MKL_Complex16 *dbuf = (MKL_Complex16 *) buf;
 
 #pragma omp parallel for simd
-        for (k_dest = n / 2 + 1; k_dest < n; k_dest++) {
-            k_src = (n - k_dest) % n;
-            dbuf[k_dest].real = dbuf[k_src].real;
-            dbuf[k_dest].imag = -dbuf[k_src].imag;
+        for (i = n / 2 + 1; i < n; i++) {
+            j = (n - i) % n;
+            dbuf[i].real = dbuf[j].real;
+            dbuf[i].imag = -dbuf[j].imag;
         }
     }
 }
 
 int main(int argc, char *argv[]) {
 
-    int i;
+    size_t i;
     bool header = true, verbose = false, inplace = false, cached = false;
     bool rfft = false;
     MKL_LONG inner_loops = 16, outer_loops = 5;
@@ -350,7 +363,7 @@ int main(int argc, char *argv[]) {
     int intarg, opt, optindex = 0;
     char *endptr;
     double darg;
-    while ((opt = getopt_long(argc, argv, "p:d:t:vPchr",
+    while ((opt = getopt_long(argc, argv, "p:d:t:i:o:vHPchr",
                               longopts, &optindex)) != -1) {
 
         /* first pass: parse numeric values and assign other values */
@@ -467,7 +480,8 @@ int main(int argc, char *argv[]) {
     warm_up_threads();
 
     /* Parse size */
-    MKL_LONG ndims, *shape;
+    size_t ndims;
+    MKL_LONG *shape;
     ndims = parse_shape(strsize, &shape);
 
     /* Validate size */
@@ -475,7 +489,7 @@ int main(int argc, char *argv[]) {
     strsize = shape_to_str(ndims, shape);
     for (i = 0; i < ndims; i++) {
         if (shape[i] < 1) {
-            error(1, 0, "given shape %s is invalid: shape[%d] = %ld < 1\n",
+            error(1, 0, "given shape %s is invalid: shape[%lu] = %ld < 1\n",
                   strsize, i, shape[i]);
         }
     }
@@ -596,7 +610,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (verbose && buf && n <= 10) {
-        zprint(n, buf);
+        print_array(dtype, n, buf);
     }
 
     mkl_free(buf);
