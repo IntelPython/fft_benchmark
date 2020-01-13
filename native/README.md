@@ -1,7 +1,20 @@
 # Native benchmark code for MKL DFTI
 
+## Compiling on Linux
 - To compile, source compiler and run `make`.
 - Run with `./fft_bench`.
+
+## Compiling on Windows
+- Source compiler and MKL, then run `win_compile_all.bat`.
+  ```
+  > "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\bin\compilervars.bat intel64"
+  > "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\mkl\bin\mklvars.bat intel64"
+  > win_compile_all.bat
+  ```
+- To run, run `fft_bench.exe`. Note that long options are not supported on
+  Windows. Use short options instead.
+
+## Usage
 
 ```
 usage: ./fft_bench [args] size
