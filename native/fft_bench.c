@@ -5,15 +5,102 @@
  */
 
 #include <ctype.h>
-#include <error.h>
 #include <errno.h>
-#include <getopt.h>
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* GNU specific extensions */
+#ifdef __GNUC__
+#include <error.h>
+#include <getopt.h>
+#else
+/* error(...) definition specifically for windows */
+#define error(status, errnum, format, ...) do { \
+    fflush(stderr); \
+    if (errnum != 0) { \
+        fprintf(stderr, "fft_bench: " format ": %s\n", ##__VA_ARGS__, strerror(errnum)); \
+    } else { \
+        fprintf(stderr, "fft_bench: " format "\n", ##__VA_ARGS__); \
+    } \
+    if (status != 0) exit(status); \
+} while (0)
+
+/* getopt definition specifically for windows */
+/* WARNING: this is a very basic implementation and does not conform
+ * to standard! */
+static int opterr = 1;
+static int optopt;
+static int optind = 1;
+static char *optarg;
+
+static int getopt(int argc, char *const *argv, const char *options) {
+
+    if (optind == argc) {
+        /* We have reached the end of arguments. Stop. */
+        return -1;
+    }
+
+    if (argv[optind][0] == '-') {
+        int optlen = strlen(argv[optind]);
+        if (optlen == 1) {
+            /* a single - as an argument: treat this as a non-option */
+            return -1;
+        }
+
+        /* Search options for this character */
+        optopt = argv[optind][1];
+        const char *optres = strchr(options, optopt);
+        if (optres == NULL) {
+            /* Option not found. */
+            if (opterr) error(0, 0, "invalid option -- '%c'", optopt);
+            if (options[0] == ':') return ':';
+            else return '?';
+        }
+
+        if (optres[1] == ':') {
+            /* This option requires an argument */
+            if (optlen > 2) {
+                /* The user provided the optarg in the same argument */
+                optarg = argv[optind] + 2;
+                optind++;
+                return optopt;
+            } else {
+                if (optind + 1 == argc) {
+                    /* No more arguments! */
+                    if (opterr) error(0, 0, "option requires an argument -- '%c'", optopt);
+                    return '?';
+                } else {
+                    /* The optarg is in the next argument */
+                    optarg = argv[optind+1];
+                    optind += 2;
+                    return optopt;
+                }
+            }
+        } else {
+            /* This option does not require an optarg. */
+            if (optlen > 2) {
+                /* More options are given in the same argument. */
+                memmove(argv[optind] + 1, argv[optind] + 2, optlen - 1);
+            } else {
+                optind++;
+            }
+            return optopt;
+        }
+    } else {
+        /* We have an argument which does not begin with a '-', and it is not
+         * an optarg, so it must be the beginning of non-option arguments. */
+        return -1;
+    }
+}
+
+/* getopt_long calling getopt */
+#define getopt_long(argc, argv, options, longopts, indexptr) \
+    getopt(argc, argv, options)
+#endif
 
 #include "mkl.h"
 #include "moments.h"
@@ -28,7 +115,7 @@
     } \
 } while (0)
 
-#define HELP_STR "Benchmark FFT using Intel(R) MKL DFTI.\n\n" \
+#define _HELP_STR "Benchmark FFT using Intel(R) MKL DFTI.\n\n" \
 "FFT problem arguments:\n" \
 "  -t, --threads=THREADS    use THREADS threads for FFT execution\n" \
 "                           (default: use MKL's default)\n" \
@@ -58,6 +145,12 @@
 "The size argument specifies the input matrix size as a tuple of positive\n" \
 "decimal integers, delimited by any non-digit. For example, both\n" \
 "(101, 203, 305) and 101x203x305 denote the same 3D FFT.\n"
+
+#ifdef __GNUC__
+#define HELP_STR _HELP_STR
+#else
+#define HELP_STR _HELP_STR "\n**Long options are not supported on Windows!**\n"
+#endif
 
 struct dtype {
     /* float or double? */
@@ -91,7 +184,7 @@ static const struct dtype *parse_dtype(const char *name) {
     for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
         dtype = &VALID_DTYPES[i];
         for (j = 0; dtype->names[j] != NULL; j++) {
-            if (strcasecmp(dtype->names[j], name) == 0) {
+            if (strcmp(dtype->names[j], name) == 0) {
                 return dtype;
             }
         }
@@ -344,6 +437,7 @@ int main(int argc, char *argv[]) {
     char *strsize = NULL;
     static const char *problems[] = {0, "fft", "fft2", "fftn"};
 
+#ifdef __GNUC__
     static struct option longopts[] = {
         {"inner-loops", required_argument, NULL, 'i'},
         {"outer-loops", required_argument, NULL, 'o'},
@@ -360,6 +454,7 @@ int main(int argc, char *argv[]) {
         {"help", no_argument, NULL, 'h'},
         {0, 0, 0, 0}
     };
+#endif
 
     int intarg, opt, optindex = 0;
     char *endptr;
@@ -473,9 +568,12 @@ int main(int argc, char *argv[]) {
     if (threads > 0) {
         mkl_set_num_threads(threads);
     }
+    /* TODO */
+#ifdef __GNUC__
     if (threads == 1) {
         mkl_set_threading_layer(MKL_THREADING_SEQUENTIAL);
     }
+#endif
 
     threads = mkl_get_max_threads();
     warm_up_threads();
