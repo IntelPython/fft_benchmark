@@ -146,6 +146,7 @@ static size_t parse_shape(const char *strsize, MKL_LONG **buf) {
         if (strsize == endptr || *endptr == '\0') break;
         strsize = endptr;
         for (; !isdigit(*strsize) && *strsize != '\0'; strsize++);
+        if (*strsize == '\0') break;
     }
 
     return i + 1;
@@ -515,7 +516,15 @@ int main(int argc, char *argv[]) {
     const char *strplace, *strcache;
     strplace = (inplace) ? "in-place" : "out-of-place";
     strcache = (cached) ? "cached" : "not cached";
-    problem = (ndims < 3) ? problems[ndims] : "fftn";
+    if (rfft) {
+        if (ndims == 1) problem = "rfft";
+        else if (ndims == 2) problem = "rfft2";
+        else problem = "rfftn";
+    } else {
+        if (ndims == 1) problem = "fft";
+        else if (ndims == 2) problem = "fft2";
+        else problem = "fftn";
+    }
 
     /* Input/output matrices */
     void *x = 0, *buf = 0;
