@@ -19,15 +19,18 @@
 #include <getopt.h>
 #else
 /* error(...) definition specifically for windows */
-#define error(status, errnum, format, ...) do { \
-    fflush(stderr); \
-    if (errnum != 0) { \
-        fprintf(stderr, "fft_bench: " format ": %s\n", ##__VA_ARGS__, strerror(errnum)); \
-    } else { \
-        fprintf(stderr, "fft_bench: " format "\n", ##__VA_ARGS__); \
-    } \
-    if (status != 0) exit(status); \
-} while (0)
+#define error(status, errnum, format, ...)                                     \
+    do {                                                                       \
+        fflush(stderr);                                                        \
+        if (errnum != 0) {                                                     \
+            fprintf(stderr, "fft_bench: " format ": %s\n", ##__VA_ARGS__,      \
+                    strerror(errnum));                                         \
+        } else {                                                               \
+            fprintf(stderr, "fft_bench: " format "\n", ##__VA_ARGS__);         \
+        }                                                                      \
+        if (status != 0)                                                       \
+            exit(status);                                                      \
+    } while (0)
 
 /* getopt definition specifically for windows */
 /* WARNING: this is a very basic implementation and does not conform
@@ -56,9 +59,12 @@ static int getopt(int argc, char *const *argv, const char *options) {
         const char *optres = strchr(options, optopt);
         if (optres == NULL) {
             /* Option not found. */
-            if (opterr) error(0, 0, "invalid option -- '%c'", optopt);
-            if (options[0] == ':') return ':';
-            else return '?';
+            if (opterr)
+                error(0, 0, "invalid option -- '%c'", optopt);
+            if (options[0] == ':')
+                return ':';
+            else
+                return '?';
         }
 
         if (optres[1] == ':') {
@@ -71,11 +77,13 @@ static int getopt(int argc, char *const *argv, const char *options) {
             } else {
                 if (optind + 1 == argc) {
                     /* No more arguments! */
-                    if (opterr) error(0, 0, "option requires an argument -- '%c'", optopt);
+                    if (opterr)
+                        error(0, 0, "option requires an argument -- '%c'",
+                              optopt);
                     return '?';
                 } else {
                     /* The optarg is in the next argument */
-                    optarg = argv[optind+1];
+                    optarg = argv[optind + 1];
                     optind += 2;
                     return optopt;
                 }
@@ -98,7 +106,7 @@ static int getopt(int argc, char *const *argv, const char *options) {
 }
 
 /* getopt_long calling getopt */
-#define getopt_long(argc, argv, options, longopts, indexptr) \
+#define getopt_long(argc, argv, options, longopts, indexptr)                   \
     getopt(argc, argv, options)
 #endif
 
@@ -108,43 +116,51 @@ static int getopt(int argc, char *const *argv, const char *options) {
 
 #define SEED 7777
 
-#define CHECK_DFTI_STATUS(status, msg, ...) do { \
-    if (status && !DftiErrorClass((status), DFTI_NO_ERROR)) { \
-        error(1, 0, msg ": %s", ##__VA_ARGS__, DftiErrorMessage((status))); \
-        return status; \
-    } \
-} while (0)
+#define CHECK_DFTI_STATUS(status, msg, ...)                                    \
+    do {                                                                       \
+        if (status && !DftiErrorClass((status), DFTI_NO_ERROR)) {              \
+            error(1, 0, msg ": %s", ##__VA_ARGS__,                             \
+                  DftiErrorMessage((status)));                                 \
+            return status;                                                     \
+        }                                                                      \
+    } while (0)
 
-#define _HELP_STR "Benchmark FFT using Intel(R) MKL DFTI.\n\n" \
-"FFT problem arguments:\n" \
-"  -t, --threads=THREADS    use THREADS threads for FFT execution\n" \
-"                           (default: use MKL's default)\n" \
-"  -d, --dtype=DTYPE        use DTYPE as the FFT domain. For a list of\n" \
-"                           understood dtypes, use '-d help'.\n" \
-"                           (default: %s)\n" \
-"  -r, --rfft               do not copy superfluous harmonics when FFT\n" \
-"                           output is conjugate-even, i.e. for real inputs\n" \
-"  -P, --in-place           allow overwriting the input buffer with the\n" \
-"                           FFT outputs\n" \
-"  -c, --cached             use the same DFTI descriptor for the same\n" \
-"                           outer loop, i.e. \"cache\" the descriptor\n" \
-"\n" \
-"Timing arguments:\n" \
-"  -i, --inner-loops=IL     time the benchmark IL times for each printed\n" \
-"                           measurement. Copies are not included in the\n" \
-"                           measurements. (default: %d)\n" \
-"  -o, --outer-loops=OL     print OL measurements. (default: %d)\n" \
-"\n" \
-"Output arguments:\n" \
-"  -p, --prefix=PREFIX      output PREFIX as the first value in outputs\n" \
-"                           (default: '%s')\n" \
-"  -H, --no-header          do not output CSV header. This can be useful\n" \
-"                           if running multiple benchmarks back-to-back.\n" \
-"  -h, --help               print this message and exit\n" \
-"\n" \
-"The size argument specifies the input matrix size as a tuple of positive\n" \
-"decimal integers, delimited by any non-digit. For example, both\n" \
-"(101, 203, 305) and 101x203x305 denote the same 3D FFT.\n"
+#define _HELP_STR                                                              \
+    "Benchmark FFT using Intel(R) MKL DFTI.\n\n"                               \
+    "FFT problem arguments:\n"                                                 \
+    "  -t, --threads=THREADS    use THREADS threads for FFT execution\n"       \
+    "                           (default: use MKL's default)\n"                \
+    "  -d, --dtype=DTYPE        use DTYPE as the FFT domain. For a list of\n"  \
+    "                           understood dtypes, use '-d help'.\n"           \
+    "                           (default: %s)\n"                               \
+    "  -r, --rfft               do not copy superfluous harmonics when FFT\n"  \
+    "                           output is conjugate-even, i.e. for real "      \
+    "inputs\n"                                                                 \
+    "  -P, --in-place           allow overwriting the input buffer with the\n" \
+    "                           FFT outputs\n"                                 \
+    "  -c, --cached             use the same DFTI descriptor for the same\n"   \
+    "                           outer loop, i.e. \"cache\" the descriptor\n"   \
+    "\n"                                                                       \
+    "Timing arguments:\n"                                                      \
+    "  -i, --inner-loops=IL     time the benchmark IL times for each "         \
+    "printed\n"                                                                \
+    "                           measurement. Copies are not included in the\n" \
+    "                           measurements. (default: %d)\n"                 \
+    "  -o, --outer-loops=OL     print OL measurements. (default: %d)\n"        \
+    "\n"                                                                       \
+    "Output arguments:\n"                                                      \
+    "  -p, --prefix=PREFIX      output PREFIX as the first value in outputs\n" \
+    "                           (default: '%s')\n"                             \
+    "  -H, --no-header          do not output CSV header. This can be "        \
+    "useful\n"                                                                 \
+    "                           if running multiple benchmarks "               \
+    "back-to-back.\n"                                                          \
+    "  -h, --help               print this message and exit\n"                 \
+    "\n"                                                                       \
+    "The size argument specifies the input matrix size as a tuple of "         \
+    "positive\n"                                                               \
+    "decimal integers, delimited by any non-digit. For example, both\n"        \
+    "(101, 203, 305) and 101x203x305 denote the same 3D FFT.\n"
 
 #ifdef __GNUC__
 #define HELP_STR _HELP_STR
@@ -169,14 +185,14 @@ struct dtype {
 static const char *NAMES_FLOAT32[] = {"float32", "float", "f4", 0};
 static const char *NAMES_FLOAT64[] = {"float64", "double", "f8", 0};
 static const char *NAMES_COMPLEX64[] = {"complex64", "complex float", "c8", 0};
-static const char *NAMES_COMPLEX128[] = {"complex128", "complex double", "c16", 0};
+static const char *NAMES_COMPLEX128[] = {"complex128", "complex double", "c16",
+                                         0};
 
 static const struct dtype VALID_DTYPES[] = {
     {DFTI_SINGLE, DFTI_REAL, sizeof(float), NAMES_FLOAT32},
     {DFTI_DOUBLE, DFTI_REAL, sizeof(double), NAMES_FLOAT64},
     {DFTI_SINGLE, DFTI_COMPLEX, sizeof(MKL_Complex8), NAMES_COMPLEX64},
-    {DFTI_DOUBLE, DFTI_COMPLEX, sizeof(MKL_Complex16), NAMES_COMPLEX128}
-};
+    {DFTI_DOUBLE, DFTI_COMPLEX, sizeof(MKL_Complex16), NAMES_COMPLEX128}};
 
 static const struct dtype *parse_dtype(const char *name) {
     size_t i, j;
@@ -210,7 +226,7 @@ static inline void warm_up_threads() {
  *
  * strsize. String to parse as null-terminated char array.
  * buf. Pointer to a pointer which will contain the size array on exit.
- * 
+ *
  * Returns the number of dimensions actually parsed.
  */
 static size_t parse_shape(const char *strsize, MKL_LONG **buf) {
@@ -219,13 +235,16 @@ static size_t parse_shape(const char *strsize, MKL_LONG **buf) {
     static const size_t initial_size = 8;
     size_t i, size;
 
-    if (strsize == NULL) return 0;
+    if (strsize == NULL)
+        return 0;
 
     /* Seek to the first digit */
-    for (; !isdigit(*strsize) && *strsize != '\0'; strsize++);
+    for (; !isdigit(*strsize) && *strsize != '\0'; strsize++)
+        ;
 
     /* No digits found? */
-    if (*strsize == '\0') return 0;
+    if (*strsize == '\0')
+        return 0;
 
     *buf = (MKL_LONG *) mkl_malloc(initial_size * sizeof(**buf), 64);
     size = initial_size;
@@ -236,10 +255,13 @@ static size_t parse_shape(const char *strsize, MKL_LONG **buf) {
             *buf = realloc(*buf, size * sizeof(**buf));
         }
         (*buf)[i] = strtoul(strsize, &endptr, 10);
-        if (strsize == endptr || *endptr == '\0') break;
+        if (strsize == endptr || *endptr == '\0')
+            break;
         strsize = endptr;
-        for (; !isdigit(*strsize) && *strsize != '\0'; strsize++);
-        if (*strsize == '\0') break;
+        for (; !isdigit(*strsize) && *strsize != '\0'; strsize++)
+            ;
+        if (*strsize == '\0')
+            break;
     }
 
     return i + 1;
@@ -249,7 +271,8 @@ static char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
     char *buf;
     size_t nbytes = 0, pos = 0, i = 0;
 
-    if (shape == NULL) return NULL;
+    if (shape == NULL)
+        return NULL;
 
     for (i = 0; i < ndims; i++) {
         nbytes += snprintf(NULL, 0, "%ldx", shape[i]);
@@ -258,7 +281,8 @@ static char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
     buf = (char *) mkl_malloc(nbytes, 64);
     for (i = 0; i < ndims; i++) {
         pos += snprintf(buf + pos, nbytes - pos, "%ld", shape[i]);
-        if (i < ndims - 1) buf[pos++] = 'x';
+        if (i < ndims - 1)
+            buf[pos++] = 'x';
     }
 
     return buf;
@@ -267,7 +291,8 @@ static char *shape_to_str(size_t ndims, const MKL_LONG *shape) {
 static MKL_LONG shape_prod(size_t ndims, const MKL_LONG *shape) {
     size_t i;
     MKL_LONG prod = 1;
-    for (i = 0; i < ndims; i++) prod *= shape[i];
+    for (i = 0; i < ndims; i++)
+        prod *= shape[i];
     return prod;
 }
 
@@ -293,7 +318,7 @@ static void print_array(const struct dtype *dtype, MKL_LONG n, void *x) {
             }
         } else {
             for (int i = 0; i < n * 2; i += 2) {
-                printf("x[%d] = %.8g + %.8gj\n", i, f[i], f[i+1]);
+                printf("x[%d] = %.8g + %.8gj\n", i, f[i], f[i + 1]);
             }
         }
     } else {
@@ -304,50 +329,55 @@ static void print_array(const struct dtype *dtype, MKL_LONG n, void *x) {
             }
         } else {
             for (int i = 0; i < n * 2; i += 2) {
-                printf("x[%d] = %.8g + %.8gj\n", i, d[i], d[i+1]);
+                printf("x[%d] = %.8g + %.8gj\n", i, d[i], d[i + 1]);
             }
         }
     }
 }
 
 static void *randn(const struct dtype *dtype, MKL_LONG n, MKL_INT brng,
-            MKL_UINT seed) {
+                   MKL_UINT seed) {
     MKL_LONG err = 0;
     VSLStreamStatePtr stream;
 
     errno = 0;
     void *x = (void *) mkl_malloc(n * dtype->size, 64);
-    if (x == NULL) error(1, errno, "failed to allocate %lu bytes for x",
-                         n * dtype->size);
+    if (x == NULL)
+        error(1, errno, "failed to allocate %lu bytes for x", n * dtype->size);
     assert(x);
 
     err = vslNewStream(&stream, brng, seed);
-    if (err != VSL_STATUS_OK) error(1, 0, "vslNewStream failed: %ld", err);
+    if (err != VSL_STATUS_OK)
+        error(1, 0, "vslNewStream failed: %ld", err);
     assert(err == VSL_STATUS_OK);
 
     /* Generate twice as many values for complex arrays */
-    if (dtype->domain == DFTI_COMPLEX) n *= 2;
+    if (dtype->domain == DFTI_COMPLEX)
+        n *= 2;
 
     if (dtype->precision == DFTI_SINGLE) {
         err = vsRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, n, x, 0, 1);
     } else {
         err = vdRngGaussian(VSL_RNG_METHOD_GAUSSIAN_ICDF, stream, n, x, 0, 1);
     }
-    if (err != VSL_STATUS_OK) error(1, 0, "v*RngGaussian failed: %ld", err);
+    if (err != VSL_STATUS_OK)
+        error(1, 0, "v*RngGaussian failed: %ld", err);
     assert(err == VSL_STATUS_OK);
 
     err = vslDeleteStream(&stream);
-    if (err != VSL_STATUS_OK) error(1, 0, "vslDeleteStream failed: %ld", err);
+    if (err != VSL_STATUS_OK)
+        error(1, 0, "vslDeleteStream failed: %ld", err);
     assert(err == VSL_STATUS_OK);
 
     return x;
 }
 
 static MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand,
-        MKL_LONG ndims,
-                               MKL_LONG *shape, MKL_LONG *strides,
-                               const struct dtype *dtype, double forward_scale,
-                               double backward_scale, bool inplace) {
+                                      MKL_LONG ndims, MKL_LONG *shape,
+                                      MKL_LONG *strides,
+                                      const struct dtype *dtype,
+                                      double forward_scale,
+                                      double backward_scale, bool inplace) {
 
     MKL_LONG status;
     if (ndims == 1) {
@@ -388,16 +418,18 @@ static MKL_LONG fft_create_descriptor(DFTI_DESCRIPTOR_HANDLE *hand,
     return 0;
 }
 
-static void copy_superfluous_harmonics(MKL_LONG ndims, MKL_LONG *shape, MKL_LONG n,
-                                const struct dtype *dtype, void *buf) {
+static void copy_superfluous_harmonics(MKL_LONG ndims, MKL_LONG *shape,
+                                       MKL_LONG n, const struct dtype *dtype,
+                                       void *buf) {
 
     MKL_LONG i, j;
 
     /* TODO: remove this error message once copy_superfluous_harmonics
      * supports multiple dimensions */
     if (ndims != 1) {
-        error(1, 0, "copy_superfluous_harmonics is unimplemented for "
-                    "ndims > 1. Try using --rfft option?");
+        error(1, 0,
+              "copy_superfluous_harmonics is unimplemented for "
+              "ndims > 1. Try using --rfft option?");
     }
 
     if (dtype->precision == DFTI_SINGLE) {
@@ -431,7 +463,7 @@ int main(int argc, char *argv[]) {
     double time_limit = 10.;
     size_t threads = -1;
     MKL_LONG n = 0, *strides = NULL;
-    
+
     const char *prefix = "Native-C", *strdtype = "complex128";
     const char *problem = NULL;
     char *strsize = NULL;
@@ -452,97 +484,96 @@ int main(int argc, char *argv[]) {
         {"cached", no_argument, NULL, 'c'},
         {"rfft", no_argument, NULL, 'r'},
         {"help", no_argument, NULL, 'h'},
-        {0, 0, 0, 0}
-    };
+        {0, 0, 0, 0}};
 #endif
 
     int intarg, opt, optindex = 0;
     char *endptr;
     double darg;
-    while ((opt = getopt_long(argc, argv, "p:d:t:i:o:vHPchr",
-                              longopts, &optindex)) != -1) {
+    while ((opt = getopt_long(argc, argv, "p:d:t:i:o:vHPchr", longopts,
+                              &optindex)) != -1) {
 
         /* first pass: parse numeric values and assign other values */
         switch (opt) {
-            case 'i':
-            case 'o':
-            case 'g':
-            case 't':
-                intarg = strtoul(optarg, &endptr, 0);
-                if (*endptr != '\0' || intarg < 0) {
-                    error(1, 0, "must be positive integer: %s\n", optarg);
-                    return EXIT_FAILURE;
-                }
-                break;
-            case 'l':
-                errno = 0;
-                darg = strtod(optarg, &endptr);
-                if (errno) {
-                    perror("fft_bench");
-                    return EXIT_FAILURE;
-                }
-                if (*endptr != '\0' || darg < 0. || darg >= INFINITY) {
-                    error(1, 0, "must be finite, non-negative double: %s\n",
-                          optarg);
-                    return EXIT_FAILURE;
-                }
-                break;
-            case 'p':
-                prefix = optarg;
-                break;
-            case 'd':
-                strdtype = optarg;
-                break;
-            case 'v':
-                verbose = true;
-                break;
-            case 'H':
-                header = false;
-                break;
-            case 'h':
-                printf("usage: %s [args] size\n", argv[0]);
-                printf(HELP_STR, "complex128", 16, 5, "Native-C");
-                return EXIT_SUCCESS;
-            case 'P':
-                inplace = true;
-                break;
-            case 'c':
-                cached = true;
-                break;
-            case 'r':
-                rfft = true;
-                break;
-            case '?':
-            default:
+        case 'i':
+        case 'o':
+        case 'g':
+        case 't':
+            intarg = strtoul(optarg, &endptr, 0);
+            if (*endptr != '\0' || intarg < 0) {
+                error(1, 0, "must be positive integer: %s\n", optarg);
                 return EXIT_FAILURE;
+            }
+            break;
+        case 'l':
+            errno = 0;
+            darg = strtod(optarg, &endptr);
+            if (errno) {
+                perror("fft_bench");
+                return EXIT_FAILURE;
+            }
+            if (*endptr != '\0' || darg < 0. || darg >= INFINITY) {
+                error(1, 0, "must be finite, non-negative double: %s\n",
+                      optarg);
+                return EXIT_FAILURE;
+            }
+            break;
+        case 'p':
+            prefix = optarg;
+            break;
+        case 'd':
+            strdtype = optarg;
+            break;
+        case 'v':
+            verbose = true;
+            break;
+        case 'H':
+            header = false;
+            break;
+        case 'h':
+            printf("usage: %s [args] size\n", argv[0]);
+            printf(HELP_STR, "complex128", 16, 5, "Native-C");
+            return EXIT_SUCCESS;
+        case 'P':
+            inplace = true;
+            break;
+        case 'c':
+            cached = true;
+            break;
+        case 'r':
+            rfft = true;
+            break;
+        case '?':
+        default:
+            return EXIT_FAILURE;
         }
 
         /* second pass: assign parsed numeric values */
         switch (opt) {
-            case 'i':
-                inner_loops = intarg;
-                break;
-            case 'o':
-                outer_loops = intarg;
-                break;
-            case 'g':
-                goal_outer_loops = intarg;
-                break;
-            case 'l':
-                time_limit = darg;
-                break;
-            case 't':
-                threads = intarg;
-            default:
-                break;
+        case 'i':
+            inner_loops = intarg;
+            break;
+        case 'o':
+            outer_loops = intarg;
+            break;
+        case 'g':
+            goal_outer_loops = intarg;
+            break;
+        case 'l':
+            time_limit = darg;
+            break;
+        case 't':
+            threads = intarg;
+        default:
+            break;
         }
     }
 
     /* Parse and validate dtype */
     const struct dtype *dtype = parse_dtype(strdtype);
     if (dtype == NULL) {
-        fprintf(stderr, "%s: dtype '%s' is unknown. Try one of",
-                argv[0], strdtype);
+        fprintf(stderr, "%s: dtype '%s' is unknown. Try one of", argv[0],
+                strdtype);
         for (i = 0; i < sizeof(VALID_DTYPES) / sizeof(*VALID_DTYPES); i++) {
             fprintf(stderr, " '%s'", VALID_DTYPES[i].names[0]);
         }
@@ -584,7 +615,8 @@ int main(int argc, char *argv[]) {
     ndims = parse_shape(strsize, &shape);
 
     /* Validate size */
-    if (ndims < 1) error(1, 0, "number of FFT dimensions must be positive");
+    if (ndims < 1)
+        error(1, 0, "number of FFT dimensions must be positive");
     strsize = shape_to_str(ndims, shape);
     for (i = 0; i < ndims; i++) {
         if (shape[i] < 1) {
@@ -594,15 +626,17 @@ int main(int argc, char *argv[]) {
     }
 
     if (rfft && dtype->domain != DFTI_REAL) {
-        error(1, 0, "--rfft makes no sense for an FFT of complex inputs. "
-                    "The FFT output will not be conjugate even, so the "
-                    "whole output matrix must be computed!");
+        error(1, 0,
+              "--rfft makes no sense for an FFT of complex inputs. "
+              "The FFT output will not be conjugate even, so the "
+              "whole output matrix must be computed!");
     }
 
     if (!rfft && dtype->domain == DFTI_REAL && ndims > 1) {
-        error(1, 0, "Copying extra harmonics in the conjugate-even output of "
-                    "FFT of real inputs of dimension greater than 1 is "
-                    "currently unsupported. Try using --rfft option?");
+        error(1, 0,
+              "Copying extra harmonics in the conjugate-even output of "
+              "FFT of real inputs of dimension greater than 1 is "
+              "currently unsupported. Try using --rfft option?");
     }
 
     /* Get total size and strides */
@@ -615,13 +649,19 @@ int main(int argc, char *argv[]) {
     strplace = (inplace) ? "in-place" : "out-of-place";
     strcache = (cached) ? "cached" : "not cached";
     if (rfft) {
-        if (ndims == 1) problem = "rfft";
-        else if (ndims == 2) problem = "rfft2";
-        else problem = "rfftn";
+        if (ndims == 1)
+            problem = "rfft";
+        else if (ndims == 2)
+            problem = "rfft2";
+        else
+            problem = "rfftn";
     } else {
-        if (ndims == 1) problem = "fft";
-        else if (ndims == 2) problem = "fft2";
-        else problem = "fftn";
+        if (ndims == 1)
+            problem = "fft";
+        else if (ndims == 2)
+            problem = "fft2";
+        else
+            problem = "fftn";
     }
 
     /* Input/output matrices */
@@ -649,7 +689,8 @@ int main(int argc, char *argv[]) {
 
     const char *strheader = "prefix,function,threads,dtype,size,"
                             "place,cached,time";
-    if (header) puts(strheader);
+    if (header)
+        puts(strheader);
 
     /* Execute benchmark */
     for (si = 0; si < outer_loops; si++) {
@@ -699,7 +740,8 @@ int main(int argc, char *argv[]) {
             }
             t1 = moment_now();
 
-            if (it >= 0) time_tot += t1 - t0;
+            if (it >= 0)
+                time_tot += t1 - t0;
         }
 
         t0 = moment_now();
@@ -713,7 +755,6 @@ int main(int argc, char *argv[]) {
         times[si] = seconds_from_moment(time_tot / inner_loops);
         printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
                dtype->names[0], strsize, strplace, strcache, times[si]);
-
     }
 
     if (verbose && buf && n <= 10) {
