@@ -34,7 +34,7 @@ def get_timer(time_modules=('itimer', 'timeit', 'time')):
     return Timer(timer_name, timer_module, now, time_delta)
 
 
-def get_random_state(seed=7777):
+def get_random_state_and_name(seed=7777):
     try:
         import numpy.random_intel as rnd
         rs = rnd.RandomState(seed, brng='MT19937')
@@ -43,6 +43,10 @@ def get_random_state(seed=7777):
         import numpy.random as rnd
         rs = rnd.RandomState(seed)
         return rs, 'numpy.random'
+
+
+def get_random_state(seed=7777):
+    return get_random_state_and_name(seed)[0]
 
 
 conda_env = os.environ.get('CONDA_DEFAULT_ENV',
@@ -117,7 +121,7 @@ def time_func(func, x, kwargs, timer=None, batch_size=16, repetitions=24,
         #
         times_list[i] = time_tot / actual_batch_size
     gc.enable()
-    return times_list, res
+    return times_list
 
 
 def print_summary(data, header=''):
@@ -142,7 +146,7 @@ def arg_signature(ar):
         else:
             # strides not divisible by element size
             qual = f'strides: {ar.strides} bytes'
-    return f'arg: shape: {ar.shape}, dtype: {ar.dtype}, {qual}'
+    return f' arg: shape: {ar.shape}, dtype: {ar.dtype}, {qual}'
 
 
 def measure_and_print(fn, ar, kw, **opts):

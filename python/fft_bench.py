@@ -94,6 +94,11 @@ parser.add_argument('shape', type=valid_shape,
 
 args = parser.parse_args()
 
+# Get timer
+timer = perf.get_timer()
+if args.verbose:
+    print(f'TAG: timer = {timer.name}')
+
 # Get function from shape
 assert len(args.shape) >= 1
 func_name = {1: 'fft', 2: 'fft2'}.get(len(args.shape), 'fftn')
@@ -107,7 +112,7 @@ if args.rfft and args.dtype.kind == 'c':
     sys.exit(1)
 
 # Generate input data
-rs, rs_name = perf.get_random_state(seed=args.seed)
+rs, rs_name = perf.get_random_state_and_name(seed=args.seed)
 if args.verbose:
     print(f'TAG: random = {rs_name}')
 arr = rs.randn(*args.shape)
@@ -115,7 +120,7 @@ if args.dtype.kind == 'c':
     arr = arr + rs.randn(*args.shape) * 1j
 arr = np.asarray(arr, dtype=args.dtype)
 if args.verbose:
-    print(f'TAG: {perf.arg_signature(arr)}')
+    print(f'TAG:{perf.arg_signature(arr)}')
 
 # Print header
 print("", flush=True)
@@ -128,7 +133,7 @@ for mod_name in args.modules:
     mod = fft_modules[mod_name]
     func = getattr(mod, func_name)
     kwargs = {}
-    time_kwargs = dict(batch_size=args.inner_loops,
+    time_kwargs = dict(timer=timer, batch_size=args.inner_loops,
                        repetitions=args.outer_loops,
                        refresh_buffer=False, verbose=args.verbose)
     in_place = False
@@ -151,7 +156,7 @@ for mod_name in args.modules:
     del x1
     del buf
 
-    perf_times, res = perf.time_func(func, arr, kwargs, **time_kwargs)
+    perf_times = perf.time_func(func, arr, kwargs, **time_kwargs)
     for t in perf_times:
         print(f'{args.prefix},{mod_name},{func_name},?,{arr.dtype.name},'
               f'{"x".join(str(i) for i in args.shape)},'
