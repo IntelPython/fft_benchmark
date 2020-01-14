@@ -1,0 +1,142 @@
+import importlib
+import inspect
+import numpy as np
+from perf import time_func, print_summary, arg_signature, get_random_state
+from platform import system
+import re
+import sys
+
+# Mark which FFT submodules are available...
+fft_modules = {'numpy.fft': np.fft}
+for mod_name in ('scipy.fftpack', 'scipy.fft'):
+    try:
+        mod = importlib.import_module(mod_name)
+    except:
+        pass
+    else:
+        fft_modules[mod_name] = mod
+
+
+def valid_shape(shape_str):
+    shape = re.sub(r'[^\d]+', 'x', shape_str).strip('x').split('x')
+    shape = tuple(int(i) for i in shape)
+    if len(shape) < 0 or any(i < 1 for i in shape):
+        raise argparse.ArgumentTypeError(f'parsed shape {shape} has '
+                                         'non-positive entries or less than '
+                                         'one dimension.')
+    return shape
+
+
+def valid_dtype(dtype_str):
+    dtype = np.dtype(dtype_str)
+    if dtype.kind not in ('f', 'c'):
+        raise argparse.ArgumentTypeError('only complex or real floating-point '
+                                         'data-types are allowed')
+    return dtype
+
+# Parse args
+import argparse
+parser = argparse.ArgumentParser(description='Benchmark FFT using NumPy and '
+                                 'SciPy.')
+
+fft_group = parser.add_argument_group(title='FFT problem arguments')
+fft_group.add_argument('-t', '--threads', '--num-threads', '--core-number',
+                       type=int, default=None,
+                       help='Number of threads to use for FFT computation '
+                       '(has an effect for MKL only; use OMP_NUM_THREADS for '
+                       'other FFT backends.)')
+fft_group.add_argument('-m', '--modules', '--submodules', nargs='*',
+                       default=tuple(fft_modules.keys()),
+                       choices=tuple(fft_modules.keys()),
+                       help='Use FFT functions from MODULES. (default: '
+                       '%(default)s)')
+fft_group.add_argument('-d', '--dtype', default=np.dtype('complex128'),
+                       type=valid_dtype,
+                       help='use DTYPE as the FFT domain. DTYPE must be '
+                       'specified such that it is parsable by numpy.dtype. '
+                       '(default: %(default)s)')
+fft_group.add_argument('-r', '--rfft', default=False, action='store_true',
+                       help='do not copy superfluous harmonics when FFT '
+                       'output is conjugate-even, i.e. for real inputs.')
+fft_group.add_argument('-P', '--overwrite-x', '--in-place', default=False,
+                       action='store_true', help='Allow overwriting the input '
+                       'buffer with the FFT outputs')
+
+timing_group = parser.add_argument_group(title='Timing arguments')
+timing_group.add_argument('-i', '--inner-loops', '--batch-size',
+                          type=int, default=16, metavar='IL',
+                          help='time the benchmark IL times for each printed '
+                          'measurement. Copying is not timed. (default: '
+                          '%(default)s)')
+timing_group.add_argument('-o', '--outer-loops', '--samples', '--repetitions',
+                          type=int, default=5, metavar='OL',
+                          help='print OL measurements. (default: %(default)s)')
+
+output_group = parser.add_argument_group(title='Output arguments')
+output_group.add_argument('-p', '--prefix', default='python',
+                          help='Output PREFIX as the first value in outputs '
+                          '(default: %(default)s)')
+output_group.add_argument('-H', '--no-header', default=True,
+                          action='store_false', dest='header',
+                          help='do not output CSV header. This can be useful '
+                          'if running multiple benchmarks back to back.')
+
+parser.add_argument('shape', type=valid_shape,
+                    help='FFT shape to run, specified as a tuple of positive '
+                    'decimal integers, delimited by any non-digit characters. '
+                    'For example, both (101, 203, 305) and 101x203x305 denote '
+                    'the same 3D FFT.')
+
+args = parser.parse_args()
+
+# Get function from shape
+assert len(args.shape) >= 1
+func_name = {1: 'fft', 2: 'fft2'}.get(len(args.shape), 'fftn')
+if args.rfft:
+    func_name = 'r' + func_name
+
+if args.rfft and args.dtype.kind == 'c':
+    parser.error('--rfft makes no sense for an FFT of complex inputs. The '
+                 'FFT output will not be conjugate even, so the whole output '
+                 'matrix must be computed!')
+    sys.exit(1)
+
+# Generate input data
+rs = get_random_state()
+arr = rs.randn(*args.shape)
+if args.dtype.kind == 'c':
+    arr = arr + rs.randn(*args.shape) * 1j
+arr = np.asarray(arr, dtype=args.dtype)
+
+print("", flush=True)
+if args.header:
+    print('prefix,module,function,threads,dtype,size,place,time', flush=True)
+
+for mod_name in args.modules:
+    mod = fft_modules[mod_name]
+    func = getattr(mod, func_name)
+    pargs = (arr,)
+    kwargs = {}
+    time_kwargs = dict(batch_size=args.inner_loops,
+                       repetitions=args.outer_loops,
+                       refresh_buffer=False)
+    in_place = False
+
+    # threads warm-up
+    buf = np.empty_like(arr)
+    np.copyto(buf, arr)
+    x1 = func(buf)
+    del x1
+    del buf
+
+    sig = inspect.signature(func)
+    if any(p == 'overwrite_x' for p in sig.parameters):
+        in_place = kwargs['overwrite_x'] = args.overwrite_x
+        time_kwargs['refresh_buffer'] = True
+
+    perf_times = time_func(func, arr, kwargs, **time_kwargs)
+    for t in perf_times:
+        print(f'{args.prefix},{mod_name},{func_name},?,{arr.dtype.name},'
+              f'{"x".join(str(i) for i in args.shape)},'
+              f'{"in-place" if in_place else "out-of-place"},{t:.5f}')
+
