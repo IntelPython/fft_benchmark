@@ -1,50 +1,52 @@
+import collections
+import gc
+import importlib
 import numpy as np
-
-try:
-    import itimer as it
-    use_itimer = True
-    def now():
-        """Returns current time moment as an integer"""
-        return it.itime()
-    def time_delta(t_start, t_finish):
-        """Computes seconds elapsed between two time moments"""
-        return it.itime_delta_in_seconds(t_start, t_finish)
-except ImportError:
-    import time as t
-    use_itimer = False
-    def now():
-        """Returns current time moment, as number of seconds since an epoch"""
-        return t.time()
-    def time_delta(t_start, t_finish):
-        """Computes seconds elapsed between two time moments"""
-        return t_finish - t_start
-finally:
-    if use_itimer:
-        print("TAG: Using itimer")
-    else:
-        print("TAG: Using time")
+import os
 
 
-_random_seed_benchmark_default_ = 777777
-def get_random_state(seed=_random_seed_benchmark_default_):
+Timer = collections.namedtuple('Timer',
+                               ('name', 'module', 'now', 'time_delta'))
+
+
+def get_timer(time_modules=('itimer', 'timeit', 'time')):
+    for mod_name in time_modules:
+        try:
+            timer_module = importlib.import_module(mod_name)
+        except ImportError:
+            pass
+        else:
+            timer_name = mod_name
+            break
+
+    now = {
+        'itimer': lambda: timer_module.itime(),
+        'timeit': lambda: timer_module.default_timer(),
+        'time': lambda: timer_module.time()
+    }[timer_name]
+
+    time_delta = {
+        'itimer': lambda t0, t1: timer_module.itime_delta_in_seconds(t0, t1),
+        'timeit': lambda t0, t1: t1 - t0,
+        'time': lambda t0, t1: t1 - t0
+    }[timer_name]
+
+    return Timer(timer_name, timer_module, now, time_delta)
+
+
+def get_random_state(seed=7777):
     try:
         import numpy.random_intel as rnd
         rs = rnd.RandomState(seed, brng='MT19937')
-        print("TAG: Using np.random_intel")
+        return rs, 'numpy.random_intel'
     except ImportError:
         import numpy.random as rnd
         rs = rnd.RandomState(seed)
-        print("TAG: Using np.random")
-    except:
-        rs = None
-        raise ValueError("Failed to initialize RandomState")
-    #
-    return rs
+        return rs, 'numpy.random'
 
 
-import os
-
-conda_env = os.environ.get('CONDA_DEFAULT_ENV', 'None, -- conda not activated --')
+conda_env = os.environ.get('CONDA_DEFAULT_ENV',
+                           'None, -- conda not activated --')
 print("TAG: CONDA_DEFAULT_ENV = " + conda_env)
 try:
     print('TAG: numpy.__mkl_version__ = %s' % np.__mkl_version__)
@@ -52,58 +54,70 @@ except AttributeError:
     print('TAG: numpy.__mkl_version__ = None')
 
 
-import gc
-def time_func(func, arg_array, keywords, batch_size=16, repetitions=24, refresh_buffer=True):
+def time_func(func, x, kwargs, timer=None, batch_size=16, repetitions=24,
+              refresh_buffer=True, verbose=False):
     """
-    Timing function time_func(func, arg_array, keywords) times evaluation of
-    func(arg_array, **keywords). It reports the total time of `batch_size` evaluations, and
-    produces `repetitions` measurements.
+    Time evaluation of func(x, **kwargs) and report the total time of
+    `batch_size` evaluations, and produces `repetitions` measurements.
 
-    If `refresh_buffer` is set to True, the input array is copied into the buffer
-    before every call to func. This is useful for timing of functions working in-place.
+    If `refresh_buffer` is set to True, the input array is copied into the
+    buffer before every call to func. This is useful for timing of functions
+    working in-place.
     """
-    if not isinstance(arg_array, np.ndarray):
-        raise ValueError("The argument must be a Numpy array")
-    if not isinstance(keywords, dict):
-        raise ValueError("The keywords must be a dictionary, corresponding to keyword argument to func")
+    if not isinstance(x, np.ndarray):
+        raise ValueError('The argument x must be a Numpy array')
+    if not isinstance(kwargs, dict):
+        raise ValueError('The keywords must be a dictionary, corresponding to '
+                         'keyword argument to func')
+    if not timer:
+        timer = get_timer()
+        if verbose:
+            print(f'TAG: timer = {timer.name}')
     #
-    print("TAG: batch_size="  + str(batch_size)  + ", " +
-               "repetitions=" + str(repetitions) + ", " +
-               "refresh_buffer = " + str(refresh_buffer) )
     times_list = np.empty((repetitions,), dtype=np.float64)
+
     # allocate the buffer
-    buf = np.empty_like(arg_array)
-    np.copyto(buf, arg_array)
+    buf = np.empty_like(x)
+    np.copyto(buf, x)
+
     # warm-up
     gc.collect()
     gc.disable()
-    t0 = now()
-    f = func(buf, **keywords)
-    t1 = now()
-    time_tot = time_delta(t0, t1)
+    t0 = timer.now()
+    res = func(buf, **kwargs)
+    t1 = timer.now()
+    time_tot = timer.time_delta(t0, t1)
+
+    # Determine optimal batch_size
     actual_batch_size = batch_size
     if time_tot * batch_size > 5:
         actual_batch_size = 1 + int(5/time_tot)
+
+    if verbose:
+        print(f'TAG: batch_size={batch_size}, repetitions={repetitions}, '
+              f'refresh_buffer={refresh_buffer}, '
+              f'actual_batch_size={actual_batch_size}')
+
     # start measurements
     for i in range(repetitions):
         time_tot = 0
         if refresh_buffer:
             for _ in range(actual_batch_size):
-                np.copyto(buf, arg_array)
-                t0 = now()
-                f = func(buf, **keywords)
-                t1 = now()
-                time_tot += time_delta(t0, t1)
+                np.copyto(buf, x)
+                t0 = timer.now()
+                res = func(buf, **kwargs)
+                t1 = timer.now()
+                time_tot += timer.time_delta(t0, t1)
         else:
-            t0 = now()
+            t0 = timer.now()
             for _ in range(actual_batch_size):
-                f = func(buf, **keywords)
-            t1 = now()
-            time_tot += time_delta(t0, t1)
+                res = func(buf, **kwargs)
+            t1 = timer.now()
+            time_tot += timer.time_delta(t0, t1)
         #
         times_list[i] = time_tot / actual_batch_size
     gc.enable()
-    return times_list
+    return times_list, res
 
 
 def print_summary(data, header=''):
@@ -121,14 +135,18 @@ def arg_signature(ar):
     elif ar.flags['F_CONTIGUOUS']:
         qual = 'F-contig.'
     else:
-        if np.all( np.array(ar.strides) % ar.itemsize == 0):
-            qual = 'srides:' + repr(tuple( x // ar.itemsize for x in ar.strides)) + ' elems'
+        if np.all(np.array(ar.strides) % ar.itemsize == 0):
+            # strides multiple of element size
+            qual = f'strides: {tuple(x // ar.itemsize for x in ar.strides)} ' \
+                   f'elems'
         else:
-            qual = 'strides:' + repr(ar.strides) + ' bytes'
-    return ' arg: shape:' + repr(ar.shape) + ' dtype:' + repr(ar.dtype) + ' ' + qual
+            # strides not divisible by element size
+            qual = f'strides: {ar.strides} bytes'
+    return f'arg: shape: {ar.shape}, dtype: {ar.dtype}, {qual}'
 
 
 def measure_and_print(fn, ar, kw, **opts):
     perf_times = time_func(fn, ar, kw, **opts)
-    print_summary(perf_times, header=fn.__name__ + '( ' +  arg_signature(ar) + ', ' + repr(kw) + ' )')
+    print_summary(perf_times,
+                  header=f'{fn.__name__}({arg_signature(ar)}, {kw})')
     return perf_times
