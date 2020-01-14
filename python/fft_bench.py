@@ -1,7 +1,7 @@
 import importlib
 import inspect
 import numpy as np
-from perf import time_func, print_summary, arg_signature, get_random_state
+import perf
 from platform import system
 import re
 import sys
@@ -61,6 +61,8 @@ fft_group.add_argument('-r', '--rfft', default=False, action='store_true',
 fft_group.add_argument('-P', '--overwrite-x', '--in-place', default=False,
                        action='store_true', help='Allow overwriting the input '
                        'buffer with the FFT outputs')
+fft_group.add_argument('-s', '--seed', default=7777, type=int,
+                       help='Seed for random number generator')
 
 timing_group = parser.add_argument_group(title='Timing arguments')
 timing_group.add_argument('-i', '--inner-loops', '--batch-size',
@@ -80,6 +82,9 @@ output_group.add_argument('-H', '--no-header', default=True,
                           action='store_false', dest='header',
                           help='do not output CSV header. This can be useful '
                           'if running multiple benchmarks back to back.')
+output_group.add_argument('-v', '--verbose', default=False,
+                          action='store_true',
+                          help='Print excessive debug messages')
 
 parser.add_argument('shape', type=valid_shape,
                     help='FFT shape to run, specified as a tuple of positive '
@@ -102,25 +107,42 @@ if args.rfft and args.dtype.kind == 'c':
     sys.exit(1)
 
 # Generate input data
-rs = get_random_state()
+rs, rs_name = perf.get_random_state(seed=args.seed)
+if args.verbose:
+    print(f'TAG: random = {rs_name}')
 arr = rs.randn(*args.shape)
 if args.dtype.kind == 'c':
     arr = arr + rs.randn(*args.shape) * 1j
 arr = np.asarray(arr, dtype=args.dtype)
+if args.verbose:
+    print(f'TAG: {perf.arg_signature(arr)}')
 
+# Print header
 print("", flush=True)
 if args.header:
     print('prefix,module,function,threads,dtype,size,place,time', flush=True)
 
+# Run benchmarks. One for each selected module
 for mod_name in args.modules:
+    # Determine arguments to benchmark and get function
     mod = fft_modules[mod_name]
     func = getattr(mod, func_name)
-    pargs = (arr,)
     kwargs = {}
     time_kwargs = dict(batch_size=args.inner_loops,
                        repetitions=args.outer_loops,
-                       refresh_buffer=False)
+                       refresh_buffer=False, verbose=args.verbose)
     in_place = False
+
+    # Inspect function to see if it allows overwrite_x.
+    # For example, numpy.fft functions do not accept overwrite_x.
+    sig = inspect.signature(func)
+    if any(p == 'overwrite_x' for p in sig.parameters):
+        in_place = kwargs['overwrite_x'] = args.overwrite_x
+        time_kwargs['refresh_buffer'] = in_place
+    else:
+        # Skip this if we needed overwrite_x but didn't get it
+        if args.overwrite_x:
+            continue
 
     # threads warm-up
     buf = np.empty_like(arr)
@@ -129,12 +151,7 @@ for mod_name in args.modules:
     del x1
     del buf
 
-    sig = inspect.signature(func)
-    if any(p == 'overwrite_x' for p in sig.parameters):
-        in_place = kwargs['overwrite_x'] = args.overwrite_x
-        time_kwargs['refresh_buffer'] = True
-
-    perf_times = time_func(func, arr, kwargs, **time_kwargs)
+    perf_times, res = perf.time_func(func, arr, kwargs, **time_kwargs)
     for t in perf_times:
         print(f'{args.prefix},{mod_name},{func_name},?,{arr.dtype.name},'
               f'{"x".join(str(i) for i in args.shape)},'
