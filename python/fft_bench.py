@@ -71,7 +71,7 @@ timing_group.add_argument('-i', '--inner-loops', '--batch-size',
                           'measurement. Copying is not timed. (default: '
                           '%(default)s)')
 timing_group.add_argument('-o', '--outer-loops', '--samples', '--repetitions',
-                          type=int, default=5, metavar='OL',
+                          type=int, default=24, metavar='OL',
                           help='print OL measurements. (default: %(default)s)')
 
 output_group = parser.add_argument_group(title='Output arguments')
