@@ -13,6 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "mkl.h"
+#include "moments.h"
+#include "omp.h"
+
 /* GNU specific extensions */
 #ifdef __GNUC__
 #include <error.h>
@@ -109,10 +113,6 @@ static int getopt(int argc, char *const *argv, const char *options) {
 #define getopt_long(argc, argv, options, longopts, indexptr)                   \
     getopt(argc, argv, options)
 #endif
-
-#include "mkl.h"
-#include "moments.h"
-#include "omp.h"
 
 #define SEED 7777
 
@@ -598,6 +598,7 @@ int main(int argc, char *argv[]) {
     /* Set and warm up threads */
     if (threads > 0) {
         mkl_set_num_threads(threads);
+        omp_set_num_threads(threads);
     }
     /* TODO */
 #ifdef __GNUC__
