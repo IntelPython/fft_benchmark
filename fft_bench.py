@@ -40,13 +40,19 @@ def valid_dtype(dtype_str):
     return dtype
 
 
+if hasattr(os, 'sched_getaffinity'):
+    default_num_threads = len(os.sched_getaffinity(0))
+else:
+    default_num_threads = os.cpu_count()
+
+
 # Parse args
 parser = argparse.ArgumentParser(description='Benchmark FFT using NumPy and '
                                  'SciPy.')
 
 fft_group = parser.add_argument_group(title='FFT problem arguments')
 fft_group.add_argument('-t', '--threads', '--num-threads', '--core-number',
-                       type=int, default=len(os.sched_getaffinity(0)),
+                       type=int, default=default_num_threads,
                        help='Number of threads to use for FFT computation. '
                        '%(prog)s will attempt to use mkl-service to get/set '
                        'number of threads globally, and will also try to '
