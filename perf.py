@@ -63,7 +63,10 @@ def set_threads(num_threads=None, verbose=False):
             print(f'TAG: WARNING: np.__mkl_version__ = {np.__mkl_version__}, '
                   f'but mkl-service module was not found. Number of threads '
                   f'is likely inaccurate!')
-            return len(os.sched_getaffinity(0)), 'len(os.sched_getaffinity(0))'
+            if hasattr(os, 'sched_getaffinity'):
+                return len(os.sched_getaffinity(0)), 'len(os.sched_getaffinity(0))'
+            else:
+                return os.cpu_count(), 'os.cpu_count()'
         else:
             # no MKL, so assume not threaded
             return 1, 'guessing'
