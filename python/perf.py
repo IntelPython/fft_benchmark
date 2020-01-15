@@ -52,24 +52,17 @@ def set_threads(num_threads=None, verbose=False):
     '''
 
     try:
-        import threadpoolctl
-    except ImportError:
-        pass
-    else:
-        if num_threads:
-            threadpoolctl.threadpool_limits(limits=num_threads)
-        threadpool_info = threadpoolctl.threadpool_info()
-        if verbose:
-            for lib in threadpool_info:
-                print(f'TAG: {lib["prefix"]}: using {lib["num_threads"]} '
-                      f'{lib.get("threading_layer", "")} threads')
-        min_threads = min(lib['num_threads'] for lib in threadpool_info)
-        return min_threads, 'threadpoolctl'
-
-    try:
         import mkl
     except ImportError:
-        pass
+        if hasattr(np, '__mkl_version__'):
+            # MKL present but no mkl-service, so guess number of CPUs
+            print(f'TAG: WARNING: np.__mkl_version__ = {np.__mkl_version__}, '
+                  f'but mkl-service module was not found. Number of threads '
+                  f'is likely inaccurate!')
+            return len(os.sched_getaffinity(0)), 'len(os.sched_getaffinity(0))'
+        else:
+            # no MKL, so assume not threaded
+            return 1, 'guessing'
     else:
         if num_threads:
             mkl.set_num_threads(num_threads)
