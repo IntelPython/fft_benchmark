@@ -14,6 +14,28 @@ Timer = collections.namedtuple('Timer',
 
 
 def get_timer(time_modules=('itimer', 'timeit', 'time')):
+    '''
+    Get some timer which we can use for benchmarking.
+
+    Parameters
+    ----------
+    time_modules : iterable, default ('itimer', 'timeit', 'time')
+        Timer modules to try, in order of preference
+
+    Returns
+    -------
+    Timer
+        Timer object (namedtuple) with attributes:
+        name : str
+            name of timer
+        module : Python module
+            actual Python module containing timer
+        now : function
+            function to get some description of the current time
+        time_delta : function(t0, t1)
+            function to find the delta in seconds between two executions of
+            now()
+    '''
     for mod_name in time_modules:
         try:
             timer_module = importlib.import_module(mod_name)
@@ -38,7 +60,7 @@ def get_timer(time_modules=('itimer', 'timeit', 'time')):
     return Timer(timer_name, timer_module, now, time_delta)
 
 
-def set_threads(num_threads=None, verbose=False):
+def set_threads(num_threads=None, verbose=False, no_guessing=False):
     '''
     Get and set the number of threads used by FFT libraries.
 
@@ -48,6 +70,10 @@ def set_threads(num_threads=None, verbose=False):
         Number of threads requested. If None, do not set threads.
     verbose : bool, default False
         If True, output debug messages to STDOUT.
+    no_guessing : bool, default false
+        If False and MKL is not found at all, return a guess of 1 thread
+        since numpy.fft and scipy.fftpack are single-threaded without MKL.
+        If True, return len(os.sched_getaffinity(0)) or os.cpu_count().
 
     Returns
     -------
@@ -58,22 +84,22 @@ def set_threads(num_threads=None, verbose=False):
     try:
         import mkl
     except ImportError:
-        if hasattr(np, '__mkl_version__'):
+        if hasattr(np, '__mkl_version__') or no_guessing:
             # MKL present but no mkl-service, so guess number of CPUs
-            print(f'TAG: WARNING: np.__mkl_version__ = {np.__mkl_version__}, '
-                  f'but mkl-service module was not found. Number of threads '
-                  f'is likely inaccurate!')
+            if verbose:
+                print(f'TAG: WARNING: mkl-service module was not '
+                      f'found. Number of threads is likely inaccurate!')
             if hasattr(os, 'sched_getaffinity'):
-                return len(os.sched_getaffinity(0)), 'len(os.sched_getaffinity(0))'
+                return len(os.sched_getaffinity(0)), 'os.sched_getaffinity'
             else:
-                return os.cpu_count(), 'os.cpu_count()'
+                return os.cpu_count(), 'os.cpu_count'
         else:
             # no MKL, so assume not threaded
             return 1, 'guessing'
     else:
         if num_threads:
             mkl.set_num_threads(num_threads)
-        return mkl.get_max_threads(), 'mkl-service'
+        return mkl.get_max_threads(), 'mkl.get_max_threads'
 
     return None, None
 
