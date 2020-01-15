@@ -1,6 +1,7 @@
 import importlib
 import inspect
 import numpy as np
+import os
 import perf
 from platform import system
 import re
@@ -42,11 +43,11 @@ parser = argparse.ArgumentParser(description='Benchmark FFT using NumPy and '
 
 fft_group = parser.add_argument_group(title='FFT problem arguments')
 fft_group.add_argument('-t', '--threads', '--num-threads', '--core-number',
-                       type=int, default=None,
+                       type=int, default=len(os.sched_getaffinity(0)),
                        help='Number of threads to use for FFT computation. '
-                       '%(prog)s will attempt to use threadpoolctl to get/set '
-                       'number of threads, and then use mkl-service if '
-                       'threadpoolctl is not available.')
+                       '%(prog)s will attempt to use mkl-service to get/set '
+                       'number of threads globally, and will also try to '
+                       'set number of workers in scipy.fft.')
 fft_group.add_argument('-m', '--modules', '--submodules', nargs='*',
                        default=tuple(fft_modules.keys()),
                        choices=tuple(fft_modules.keys()),
@@ -102,15 +103,10 @@ if args.verbose:
     print(f'TAG: timer = {timer.name}')
 
 # Set threads
-threads, threading_module = perf.set_threads(num_threads=args.threads,
-                                             verbose=args.verbose)
-if not threading_module:
-    print('TAG: WARNING: We have no way to set the number of threads! '
-          'Try installing threadpoolctl (or mkl-service if using MKL). '
-          'You may have to set OMP_NUM_THREADS or other environment variables '
-          'to set the number of threads.')
+threads, threading_info_source = perf.set_threads(num_threads=args.threads,
+                                                  verbose=args.verbose)
 if args.verbose:
-    print(f'TAG: threading_module = {threading_module}')
+    print(f'TAG: threading_info_source = {threading_info_source}')
 
 # Get function from shape
 assert len(args.shape) >= 1
@@ -150,17 +146,20 @@ for mod_name in args.modules:
                        repetitions=args.outer_loops,
                        refresh_buffer=False, verbose=args.verbose)
     in_place = False
+    actual_threads = threads
 
     # Inspect function to see if it allows overwrite_x.
     # For example, numpy.fft functions do not accept overwrite_x.
     sig = inspect.signature(func)
-    if any(p == 'overwrite_x' for p in sig.parameters):
+    if 'overwrite_x' in sig.parameters:
         in_place = kwargs['overwrite_x'] = args.overwrite_x
         time_kwargs['refresh_buffer'] = in_place
     else:
         # Skip this if we needed overwrite_x but didn't get it
         if args.overwrite_x:
             continue
+    if 'workers' in sig.parameters:
+        actual_threads = kwargs['workers'] = args.threads
 
     # threads warm-up
     buf = np.empty_like(arr)
@@ -171,7 +170,7 @@ for mod_name in args.modules:
 
     perf_times = perf.time_func(func, arr, kwargs, **time_kwargs)
     for t in perf_times:
-        print(f'{args.prefix},{mod_name},{func_name},{threads},'
+        print(f'{args.prefix},{mod_name},{func_name},{actual_threads},'
               f'{arr.dtype.name},{"x".join(str(i) for i in args.shape)},'
               f'{"in-place" if in_place else "out-of-place"},{t:.5g}')
 
