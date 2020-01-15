@@ -77,9 +77,11 @@ Benchmark a 2D out-of-place FFT of a `complex128` array of size `(10000,
 
 Benchmark a 1D in-place FFT of a `float32` array of size `100000000`, print
 only 5 measurements, only compute the first half of the conjugate-even
-DFT coefficients, and allow the FFT backend to only use one thread:
+DFT coefficients, allow the FFT backend to only use one thread, and cache
+the DFTI descriptor between inner loop runs (similar behavior to `mkl_fft` for
+single dimensional FFTs).
 ```
-./fft_bench -P -r -t 1 -d float32 -o 5 100000000
+./fft_bench -P -c -r -t 1 -d float32 -o 5 100000000
 ```
 
 Benchmark a 3D in-place FFT of a `complex64` array of size `1001x203x3005`,
