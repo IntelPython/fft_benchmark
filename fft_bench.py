@@ -1,9 +1,13 @@
+# Copyright (C) 2017-2020 Intel Corporation.
+#
+# SPDX-License-Identifier: MIT
+
+import argparse
 import importlib
 import inspect
 import numpy as np
 import os
 import perf
-from platform import system
 import re
 import sys
 
@@ -12,7 +16,7 @@ fft_modules = {'numpy.fft': np.fft}
 for mod_name in ('scipy.fftpack', 'scipy.fft'):
     try:
         mod = importlib.import_module(mod_name)
-    except:
+    except ImportError:
         pass
     else:
         fft_modules[mod_name] = mod
@@ -37,7 +41,6 @@ def valid_dtype(dtype_str):
 
 
 # Parse args
-import argparse
 parser = argparse.ArgumentParser(description='Benchmark FFT using NumPy and '
                                  'SciPy.')
 
@@ -173,4 +176,3 @@ for mod_name in args.modules:
         print(f'{args.prefix},{mod_name},{func_name},{actual_threads},'
               f'{arr.dtype.name},{"x".join(str(i) for i in args.shape)},'
               f'{"in-place" if in_place else "out-of-place"},{t:.5g}')
-
