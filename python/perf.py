@@ -34,6 +34,50 @@ def get_timer(time_modules=('itimer', 'timeit', 'time')):
     return Timer(timer_name, timer_module, now, time_delta)
 
 
+def set_threads(num_threads=None, verbose=False):
+    '''
+    Get and set the number of threads used by FFT libraries.
+
+    Parameters
+    ----------
+    num_threads : int, default None
+        Number of threads requested. If None, do not set threads.
+    verbose : bool, default False
+        If True, output debug messages to STDOUT.
+
+    Returns
+    -------
+    int or None
+        The number of threads successfully set, or None on failure.
+    '''
+
+    try:
+        import threadpoolctl
+    except ImportError:
+        pass
+    else:
+        if num_threads:
+            threadpoolctl.threadpool_limits(limits=num_threads)
+        threadpool_info = threadpoolctl.threadpool_info()
+        if verbose:
+            for lib in threadpool_info:
+                print(f'TAG: {lib["prefix"]}: using {lib["num_threads"]} '
+                      f'{lib.get("threading_layer", "")} threads')
+        min_threads = min(lib['num_threads'] for lib in threadpool_info)
+        return min_threads, 'threadpoolctl'
+
+    try:
+        import mkl
+    except ImportError:
+        pass
+    else:
+        if num_threads:
+            mkl.set_num_threads(num_threads)
+        return mkl.get_max_threads(), 'mkl-service'
+
+    return None, None
+
+
 def get_random_state_and_name(seed=7777):
     try:
         import numpy.random_intel as rnd

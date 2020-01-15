@@ -34,6 +34,7 @@ def valid_dtype(dtype_str):
                                          'data-types are allowed')
     return dtype
 
+
 # Parse args
 import argparse
 parser = argparse.ArgumentParser(description='Benchmark FFT using NumPy and '
@@ -42,9 +43,10 @@ parser = argparse.ArgumentParser(description='Benchmark FFT using NumPy and '
 fft_group = parser.add_argument_group(title='FFT problem arguments')
 fft_group.add_argument('-t', '--threads', '--num-threads', '--core-number',
                        type=int, default=None,
-                       help='Number of threads to use for FFT computation '
-                       '(has an effect for MKL only; use OMP_NUM_THREADS for '
-                       'other FFT backends.)')
+                       help='Number of threads to use for FFT computation. '
+                       '%(prog)s will attempt to use threadpoolctl to get/set '
+                       'number of threads, and then use mkl-service if '
+                       'threadpoolctl is not available.')
 fft_group.add_argument('-m', '--modules', '--submodules', nargs='*',
                        default=tuple(fft_modules.keys()),
                        choices=tuple(fft_modules.keys()),
@@ -98,6 +100,17 @@ args = parser.parse_args()
 timer = perf.get_timer()
 if args.verbose:
     print(f'TAG: timer = {timer.name}')
+
+# Set threads
+threads, threading_module = perf.set_threads(num_threads=args.threads,
+                                             verbose=args.verbose)
+if not threading_module:
+    print('TAG: WARNING: We have no way to set the number of threads! '
+          'Try installing threadpoolctl (or mkl-service if using MKL). '
+          'You may have to set OMP_NUM_THREADS or other environment variables '
+          'to set the number of threads.')
+if args.verbose:
+    print(f'TAG: threading_module = {threading_module}')
 
 # Get function from shape
 assert len(args.shape) >= 1
@@ -158,7 +171,7 @@ for mod_name in args.modules:
 
     perf_times = perf.time_func(func, arr, kwargs, **time_kwargs)
     for t in perf_times:
-        print(f'{args.prefix},{mod_name},{func_name},?,{arr.dtype.name},'
-              f'{"x".join(str(i) for i in args.shape)},'
-              f'{"in-place" if in_place else "out-of-place"},{t:.5f}')
+        print(f'{args.prefix},{mod_name},{func_name},{threads},'
+              f'{arr.dtype.name},{"x".join(str(i) for i in args.shape)},'
+              f'{"in-place" if in_place else "out-of-place"},{t:.5g}')
 
