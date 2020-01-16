@@ -310,25 +310,26 @@ static MKL_LONG *shape_strides(size_t ndims, const MKL_LONG *shape) {
 }
 
 static void print_array(const struct dtype *dtype, MKL_LONG n, void *x) {
+    int i;
     if (dtype->precision == DFTI_SINGLE) {
         float *f = (float *) x;
         if (dtype->domain == DFTI_REAL) {
-            for (int i = 0; i < n; i++) {
+            for (i = 0; i < n; i++) {
                 printf("x[%d] = %.8g\n", i, f[i]);
             }
         } else {
-            for (int i = 0; i < n * 2; i += 2) {
+            for (i = 0; i < n * 2; i += 2) {
                 printf("x[%d] = %.8g + %.8gj\n", i, f[i], f[i + 1]);
             }
         }
     } else {
         double *d = (double *) x;
         if (dtype->domain == DFTI_REAL) {
-            for (int i = 0; i < n; i++) {
+            for (i = 0; i < n; i++) {
                 printf("x[%d] = %.8g\n", i, d[i]);
             }
         } else {
-            for (int i = 0; i < n * 2; i += 2) {
+            for (i = 0; i < n * 2; i += 2) {
                 printf("x[%d] = %.8g + %.8gj\n", i, d[i], d[i + 1]);
             }
         }

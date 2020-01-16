@@ -9,6 +9,11 @@ CFLAGS = -m64 -fPIC -fp-model strict -O3 -g -fomit-frame-pointer \
 	 -DNDEBUG -qopenmp -xSSE4.2 -axCORE-AVX2,COMMON-AVX512 \
 	 -lmkl_rt -Wall -pedantic
 
+ifneq ($(CONDA_PREFIX),)
+	LDFLAGS += -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib
+	CFLAGS += -I$(CONDA_PREFIX)/include
+endif
+
 all: fft_bench
 
 clean:
