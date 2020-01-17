@@ -128,8 +128,10 @@ static int getopt(int argc, char *const *argv, const char *options) {
 #define _HELP_STR                                                              \
     "Benchmark FFT using Intel(R) MKL DFTI.\n\n"                               \
     "FFT problem arguments:\n"                                                 \
-    "  -t, --threads=THREADS    use THREADS threads for FFT execution\n"       \
-    "                           (default: use MKL's default)\n"                \
+    "  -t, --threads=THREADS    use THREADS threads for FFT execution.\n"      \
+    "                           Specifying zero threads will instruct the \n"  \
+    "                           benchmark to use MKL's default number of \n"   \
+    "                           threads. (default: use MKL's default)\n"       \
     "  -d, --dtype=DTYPE        use DTYPE as the FFT domain. For a list of\n"  \
     "                           understood dtypes, use '-d help'.\n"           \
     "                           (default: %s)\n"                               \
@@ -462,7 +464,7 @@ int main(int argc, char *argv[]) {
     MKL_LONG inner_loops = 16, outer_loops = 5;
     size_t goal_outer_loops = 10;
     double time_limit = 10.;
-    size_t threads = -1;
+    size_t threads = 0;
     MKL_LONG n = 0, *strides = NULL;
 
     const char *prefix = "Native-C", *strdtype = "complex128";
