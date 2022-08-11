@@ -6,7 +6,7 @@ import argparse
 import importlib
 import inspect
 import numpy as np
-import scipy
+import scipy.fft
 import os
 import perf
 import re
