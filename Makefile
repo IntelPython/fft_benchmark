@@ -4,9 +4,9 @@
 
 SOURCES = fft_bench.c
 
-CC = icc
+CC = icx
 CFLAGS = -m64 -fPIC -fp-model strict -O3 -g -fomit-frame-pointer \
-	 -DNDEBUG -qopenmp -xSSE4.2 -axCORE-AVX2,COMMON-AVX512 \
+	 -DNDEBUG -qopenmp -xSSE4.2 -xCORE-AVX2 -xCORE-AVX512 -xCOMMON-AVX512 \
 	 -lmkl_rt -Wall -pedantic
 
 ifneq ($(CONDA_PREFIX),)
