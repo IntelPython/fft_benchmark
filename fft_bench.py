@@ -12,6 +12,13 @@ import perf
 import re
 import sys
 
+try: # Workaround for disabled mkl_fft in latest Intel SciPy
+    import mkl_fft
+    import mkl_fft._scipy_fft_backend as sfbn
+    scipy.fft.set_global_backend(sfbn)
+except (ImportError, ModuleNotFoundError, ValueError):
+    print("Unable to use mkl_fft as scipy.fft backend")
+
 # Mark which FFT submodules are available...
 fft_modules = {'numpy.fft': np.fft, 'scipy.fft': scipy.fft}
 
