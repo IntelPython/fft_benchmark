@@ -1,33 +1,30 @@
-# FFT benchmarks for Intel(R) Distribution for Python\*
+# FFT benchmarks for NumPy\* and SciPy\*
 
-This set of benchmarks measures performance of FFT computations, serving to
-highlight performance improvements to FFT computations in NumPy and SciPy in
-the Intel(R) Distribution for Python\*. We provide both Python and native
-(MKL DFTI) implementations of these benchmarks with similar command-line
+This FFt benchmarking framework is useful to measure FFT performance of different NumPy and SciPy versions and vendors. 
+In addition to Python implementation we also able to benchmark native code (MKL DFTI) implementations of these benchmarks with similar command-line
 interfaces.
 
 ## Python benchmarks
 
-To reproduce, install Intel(R) Distribution for Python\* as follows:
+The following example create benchmarking environment for NumPy and SciPy FFT available from intel channel in conda:
 
 ```bash
-conda create -n 'idp3_fft' -c intel numpy scipy
-conda activate idp3_fft
+conda create -n intel_env -c intel numpy scipy
+conda activate intel_env
 ```
 
-To benchmark FFT in Python, execute
+To run the FFT benchmark framework in Python, type
 
 ```bash
 python fft_bench.py [-h] [args] size
 ```
 
-The methodology is to perform one unmeasured computation, and then repeat 24
-total timings for 16 repetitions of FFT computations in the loop.  The 24
+The framework perform initial warmup call to respective FFT API, and then performs 24 (default) timings
+for 16 (default) repetitions of FFT computations in the loop. These 24
 measurements are aggregated to report minimum, median and maximum timings,
 which are printed to STDOUT.
 
-Other printed lines which start with 'TAG: ' are printed for information only,
-and can be filtered out if need be.
+Other printed lines which start with 'TAG: ' are printed for information purposes.
 
 ### Examples
 
