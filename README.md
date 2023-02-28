@@ -1,6 +1,6 @@
 # FFT benchmarks for NumPy\* and SciPy\*
 
-This FFt benchmarking framework is useful to measure FFT performance of different NumPy and SciPy versions and vendors. 
+This FFF benchmarking framework is useful to measure FFT performance of different NumPy and SciPy versions and vendors. 
 In addition to Python implementation we also able to benchmark native code (MKL DFTI) implementations of these benchmarks with similar command-line
 interfaces.
 
