@@ -13,7 +13,7 @@ conda create -n intel_env -c intel numpy scipy
 conda activate intel_env
 ```
 
-To run the FFT benchmark framework in Python, type
+To run the FFT benchmark framework in Python, type:
 
 ```bash
 python fft_bench.py [-h] [args] size
