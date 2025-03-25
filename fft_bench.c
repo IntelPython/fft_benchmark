@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2020 Intel Corporation.
+ * Copyright (c) 2017-2025 Intel Corporation.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -210,7 +210,7 @@ static const struct dtype *parse_dtype(const char *name) {
     return NULL;
 }
 
-static inline void warm_up_threads() {
+static inline void warm_up_threads(void) {
     int i;
     unsigned int *x = malloc(mkl_get_max_threads() * sizeof(int));
 
@@ -346,7 +346,7 @@ static void *randn(const struct dtype *dtype, MKL_LONG n, MKL_INT brng,
     errno = 0;
     void *x = (void *) mkl_malloc(n * dtype->size, 64);
     if (x == NULL)
-        error(1, errno, "failed to allocate %lu bytes for x", n * dtype->size);
+        error(1, errno, "failed to allocate %zu bytes for x", n * dtype->size);
     assert(x);
 
     err = vslNewStream(&stream, brng, seed);
@@ -462,22 +462,17 @@ int main(int argc, char *argv[]) {
     bool header = true, verbose = false, inplace = false, cached = false;
     bool rfft = false;
     MKL_LONG inner_loops = 16, outer_loops = 5;
-    size_t goal_outer_loops = 10;
-    double time_limit = 10.;
     size_t threads = 0;
     MKL_LONG n = 0, *strides = NULL;
 
     const char *prefix = "Native-C", *strdtype = "complex128";
     const char *problem = NULL;
     char *strsize = NULL;
-    static const char *problems[] = {0, "fft", "fft2", "fftn"};
 
 #ifdef __GNUC__
     static struct option longopts[] = {
         {"inner-loops", required_argument, NULL, 'i'},
         {"outer-loops", required_argument, NULL, 'o'},
-        {"goal-outer-loops", required_argument, NULL, 'g'},
-        {"time-limit", required_argument, NULL, 'l'},
         {"threads", required_argument, NULL, 't'},
         {"prefix", required_argument, NULL, 'p'},
         {"dtype", required_argument, NULL, 'd'},
@@ -559,12 +554,6 @@ int main(int argc, char *argv[]) {
         case 'o':
             outer_loops = intarg;
             break;
-        case 'g':
-            goal_outer_loops = intarg;
-            break;
-        case 'l':
-            time_limit = darg;
-            break;
         case 't':
             threads = intarg;
         default:
@@ -624,7 +613,7 @@ int main(int argc, char *argv[]) {
     strsize = shape_to_str(ndims, shape);
     for (i = 0; i < ndims; i++) {
         if (shape[i] < 1) {
-            error(1, 0, "given shape %s is invalid: shape[%lu] = %ld < 1\n",
+            error(1, 0, "given shape %s is invalid: shape[%zu] = %ld < 1\n",
                   strsize, i, shape[i]);
         }
     }
@@ -757,7 +746,7 @@ int main(int argc, char *argv[]) {
         time_tot += t1 - t0;
 
         times[si] = seconds_from_moment(time_tot / inner_loops);
-        printf("%s,%s,%lu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
+        printf("%s,%s,%zu,%s,%s,%s,%s,%.5g\n", prefix, problem, threads,
                dtype->names[0], strsize, strplace, strcache, times[si]);
     }
 

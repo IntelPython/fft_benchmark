@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2020 Intel Corporation.
+# Copyright (c) 2017-2025 Intel Corporation.
 #
 # SPDX-License-Identifier: MIT
 

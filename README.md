@@ -1,16 +1,15 @@
 # FFT benchmarks for NumPy\* and SciPy\*
 
 This FFF benchmarking framework is useful to measure FFT performance of different NumPy and SciPy versions and vendors. 
-In addition to Python implementation we also able to benchmark native code (MKL DFTI) implementations of these benchmarks with similar command-line
-interfaces.
+In addition to Python implementation, it is also possible to benchmark native code (MKL DFTI) implementations of these benchmarks with similar command-line interfaces.
 
 ## Python benchmarks
 
 The following example create benchmarking environment for NumPy and SciPy FFT available from intel channel in conda:
 
 ```bash
-conda create -n intel_env -c intel numpy scipy
-conda activate intel_env
+conda create -n fft_benchmark -c https://software.repos.intel.com/python/conda/ -c conda-forge numpy scipy
+conda activate fft_benchmark
 ```
 
 To run the FFT benchmark framework in Python, type:
@@ -28,47 +27,58 @@ Other printed lines which start with 'TAG: ' are printed for information purpose
 
 ### Examples
 
-Benchmark a 2D out-of-place FFT of a `complex128` array of size `(10000,
-10000)`:
-```
+Benchmark a 2D out-of-place FFT of a `complex128` array of size `(10000, 10000)`:
+
+```bash
 python fft_bench.py 10000x10000
 ```
 
 Benchmark a 1D in-place FFT of a `float32` array of size `100000000`, print
 only 5 measurements, only compute the first half of the conjugate-even
 DFT coefficients, and allow the FFT backend to only use one thread:
-```
+
+```bash
 python fft_bench.py -P -r -t 1 -d float32 -o 5 100000000
 ```
 
 Benchmark a 3D in-place FFT of a `complex64` array of size `1001x203x3005`,
 printing only 5 measurements, each of which average over 24 inner loop
 computations:
-```
+
+```bash
 python fft_bench.py -P -d complex64 -o 5 -i 24 1001x203x3005
 ```
 
 ## Native benchmarks
 
 ### Compiling on Linux
-- To compile, source compiler and run `make`.
-- Run with `./fft_bench`.
+- Source compiler and MKL, then run `make`.
+
+```bash
+source /path_to_oneapi/compiler/latest/env/vars.sh
+source /path_to_oneapi/mkl/latest/env/vars.sh
+make
+```
+
+- Run with `./fft_bench [args] size`.
 
 ### Compiling on Windows
 - Source compiler and MKL, then run `win_compile_all.bat`.
+
   ```
-  > "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\bin\compilervars.bat intel64"
-  > "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\mkl\bin\mklvars.bat intel64"
+  > "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\env\vars.bat"
+  > "C:\Program Files (x86)\Intel\oneAPI\mkl\latest\env\vars.bat"
   > win_compile_all.bat
   ```
-- To run, run `fft_bench.exe`. Note that long options are not supported on
+
+- Run with `fft_bench.exe [args] size`. Note that long options are not supported on
   Windows. Use short options instead.
 
 ### Examples
 
-Benchmark a 2D out-of-place FFT of a `complex128` array of size `(10000,
-10000)`:
-```
+Benchmark a 2D out-of-place FFT of a `complex128` array of size `(10000, 10000)`:
+
+```bash
 ./fft_bench 10000x10000
 ```
 
@@ -77,14 +87,16 @@ only 5 measurements, only compute the first half of the conjugate-even
 DFT coefficients, allow the FFT backend to only use one thread, and cache
 the DFTI descriptor between inner loop runs (similar behavior to `mkl_fft` for
 single dimensional FFTs).
-```
+
+```bash
 ./fft_bench -P -c -r -t 1 -d float32 -o 5 100000000
 ```
 
 Benchmark a 3D in-place FFT of a `complex64` array of size `1001x203x3005`,
 printing only 5 measurements, each of which average over 24 inner loop
 computations:
-```
+
+```bash
 ./fft_bench -P -d complex64 -o 5 -i 24 1001x203x3005
 ```
 
@@ -127,7 +139,7 @@ decimal integers, delimited by any non-digit. For example, both
 
 ## See also
 "[Accelerating Scientific Python with Intel
-Optimizations](http://conference.scipy.org/proceedings/scipy2017/pdfs/oleksandr_pavlyk.pdf)"
+Optimizations](https://proceedings.scipy.org/articles/shinma-7f4c6e7-00f)"
 by Oleksandr Pavlyk, Denis Nagorny, Andres Guzman-Ballen, Anton Malakhov, Hai
 Liu, Ehsan Totoni, Todd A. Anderson, Sergey Maidanov. Proceedings of the 16th
 Python in Science Conference (SciPy 2017), July 10 - July 16, Austin, Texas
