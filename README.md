@@ -130,7 +130,7 @@ Output arguments:
                            (default: 'Native-C')
   -H, --no-header          do not output CSV header. This can be useful
                            if running multiple benchmarks back-to-back.
-  -h, --help               print this message and exit
+  -h, --help               print this message and exit.
 
 The size argument specifies the input matrix size as a tuple of positive
 decimal integers, delimited by any non-digit. For example, both
