@@ -556,6 +556,7 @@ int main(int argc, char *argv[]) {
             break;
         case 't':
             threads = intarg;
+            break;
         default:
             break;
         }

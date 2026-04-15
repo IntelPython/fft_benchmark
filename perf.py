@@ -2,18 +2,24 @@
 #
 # SPDX-License-Identifier: MIT
 
-import collections
+from __future__ import annotations
+
 import gc
 import importlib
-import numpy as np
 import os
+from typing import Any, Callable, NamedTuple
+
+import numpy as np
 
 
-Timer = collections.namedtuple('Timer',
-                               ('name', 'module', 'now', 'time_delta'))
+class Timer(NamedTuple):
+    name: str
+    module: Any
+    now: Callable[[], float]
+    time_delta: Callable[[float, float], float]
 
 
-def get_timer(time_modules=('itimer', 'timeit', 'time')):
+def get_timer(time_modules: tuple[str, ...] = ('itimer', 'timeit', 'time')) -> Timer:
     '''
     Get some timer which we can use for benchmarking.
 
@@ -47,8 +53,8 @@ def get_timer(time_modules=('itimer', 'timeit', 'time')):
 
     now = {
         'itimer': lambda: timer_module.itime(),
-        'timeit': lambda: timer_module.default_timer(),
-        'time': lambda: timer_module.time()
+        'timeit': lambda: timer_module.default_timer(),  # == time.perf_counter since Python 3.3
+        'time': lambda: timer_module.perf_counter()
     }[timer_name]
 
     time_delta = {
@@ -60,7 +66,8 @@ def get_timer(time_modules=('itimer', 'timeit', 'time')):
     return Timer(timer_name, timer_module, now, time_delta)
 
 
-def set_threads(num_threads=None, verbose=False, no_guessing=False):
+def set_threads(num_threads: int | None = None, verbose: bool = False,
+                no_guessing: bool = False) -> tuple[int | None, str]:
     '''
     Get and set the number of threads used by FFT libraries.
 
@@ -101,35 +108,44 @@ def set_threads(num_threads=None, verbose=False, no_guessing=False):
             mkl.set_num_threads(num_threads)
         return mkl.get_max_threads(), 'mkl.get_max_threads'
 
-    return None, None
+
+def get_random_state_and_name(seed: int = 7777) -> tuple[np.random.RandomState, str]:
+    """Return (RandomState, name) for legacy callers (e.g. scipy_paper/)."""
+    rs = np.random.RandomState(seed)
+    return rs, 'numpy.random.RandomState'
 
 
-def get_random_state_and_name(seed=7777):
-    try:
-        import numpy.random_intel as rnd
-        rs = rnd.RandomState(seed, brng='MT19937')
-        return rs, 'numpy.random_intel'
-    except ImportError:
-        import numpy.random as rnd
-        rs = rnd.RandomState(seed)
-        return rs, 'numpy.random'
-
-
-def get_random_state(seed=7777):
+def get_random_state(seed: int = 7777) -> np.random.RandomState:
+    """Return a legacy RandomState. Kept for scipy_paper/ backward compat."""
     return get_random_state_and_name(seed)[0]
 
 
-conda_env = os.environ.get('CONDA_DEFAULT_ENV',
-                           'None, -- conda not activated --')
-print("TAG: CONDA_DEFAULT_ENV = " + conda_env)
-try:
-    print('TAG: numpy.__mkl_version__ = %s' % np.__mkl_version__)
-except AttributeError:
-    print('TAG: numpy.__mkl_version__ = None')
+def get_generator_and_name(seed: int = 7777) -> tuple[np.random.Generator, str]:
+    """Return (Generator, name) using modern NumPy random API."""
+    rng = np.random.default_rng(seed)
+    return rng, 'numpy.random.Generator'
 
 
-def time_func(func, x, kwargs, timer=None, batch_size=16, repetitions=24,
-              refresh_buffer=True, verbose=False):
+def get_generator(seed: int = 7777) -> np.random.Generator:
+    """Return a modern numpy.random.Generator."""
+    return get_generator_and_name(seed)[0]
+
+
+def print_environment_info() -> None:
+    """Print TAG lines with conda env and MKL version info to stdout."""
+    conda_env = os.environ.get('CONDA_DEFAULT_ENV',
+                               'None, -- conda not activated --')
+    print(f"TAG: CONDA_DEFAULT_ENV = {conda_env}")
+    try:
+        print(f'TAG: numpy.__mkl_version__ = {np.__mkl_version__}')
+    except AttributeError:
+        print('TAG: numpy.__mkl_version__ = None')
+
+
+def time_func(func: Callable, x: np.ndarray, kwargs: dict,
+              timer: Timer | None = None, batch_size: int = 16,
+              repetitions: int = 24, refresh_buffer: bool = True,
+              verbose: bool = False) -> np.ndarray:
     """
     Time evaluation of func(x, **kwargs) and report the total time of
     `batch_size` evaluations, and produces `repetitions` measurements.
@@ -194,16 +210,14 @@ def time_func(func, x, kwargs, timer=None, batch_size=16, repetitions=24,
     return times_list
 
 
-def print_summary(data, header=''):
-    a = np.array(data)
-    print("TAG: " + header)
-    print('{min:0.3f}, {med:0.3f}, {max:0.3f}'.format(
-        min=np.min(a), med=np.median(a), max=np.max(a)
-    ))
+def print_summary(data: np.ndarray | list, header: str = '') -> None:
+    a = np.asarray(data)
+    print(f"TAG: {header}")
+    print(f'{np.min(a):0.3f}, {np.median(a):0.3f}, {np.max(a):0.3f}')
     print("", flush=True)
 
 
-def arg_signature(ar):
+def arg_signature(ar: np.ndarray) -> str:
     if ar.flags['C_CONTIGUOUS']:
         qual = 'C-contig.'
     elif ar.flags['F_CONTIGUOUS']:
@@ -219,7 +233,7 @@ def arg_signature(ar):
     return f' arg: shape: {ar.shape}, dtype: {ar.dtype}, {qual}'
 
 
-def measure_and_print(fn, ar, kw, **opts):
+def measure_and_print(fn: Callable, ar: np.ndarray, kw: dict, **opts) -> np.ndarray:
     perf_times = time_func(fn, ar, kw, **opts)
     print_summary(perf_times,
                   header=f'{fn.__name__}({arg_signature(ar)}, {kw})')

@@ -10,7 +10,6 @@ import scipy.fft
 import os
 import perf
 import re
-import sys
 
 
 # Mark which FFT submodules are available...
@@ -19,7 +18,7 @@ fft_modules = {'numpy.fft': np.fft, 'scipy.fft': scipy.fft}
 def valid_shape(shape_str):
     shape = re.sub(r'[^\d]+', 'x', shape_str).strip('x').split('x')
     shape = tuple(int(i) for i in shape)
-    if len(shape) < 0 or any(i < 1 for i in shape):
+    if len(shape) < 1 or any(i < 1 for i in shape):
         raise argparse.ArgumentTypeError(f'parsed shape {shape} has '
                                          'non-positive entries or less than '
                                          'one dimension.')
@@ -95,6 +94,9 @@ parser.add_argument('shape', type=valid_shape,
 
 args = parser.parse_args()
 
+# Print environment info (conda env, MKL version)
+perf.print_environment_info()
+
 # Get timer
 timer = perf.get_timer()
 if args.verbose:
@@ -116,15 +118,14 @@ if args.rfft and args.dtype.kind == 'c':
     parser.error('--rfft makes no sense for an FFT of complex inputs. The '
                  'FFT output will not be conjugate even, so the whole output '
                  'matrix must be computed!')
-    sys.exit(1)
 
 # Generate input data
-rs, rs_name = perf.get_random_state_and_name(seed=args.seed)
+rs, rs_name = perf.get_generator_and_name(seed=args.seed)
 if args.verbose:
     print(f'TAG: random = {rs_name}')
-arr = rs.randn(*args.shape)
+arr = rs.standard_normal(args.shape)
 if args.dtype.kind == 'c':
-    arr = arr + rs.randn(*args.shape) * 1j
+    arr = arr + rs.standard_normal(args.shape) * 1j
 arr = np.asarray(arr, dtype=args.dtype)
 if args.verbose:
     print(f'TAG:{perf.arg_signature(arr)}')
