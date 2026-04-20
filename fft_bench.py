@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
+import contextlib
 import importlib
 import inspect
 import numpy as np
@@ -63,6 +64,13 @@ fft_group.add_argument('-P', '--overwrite-x', '--in-place', default=False,
                        'buffer with the FFT outputs')
 fft_group.add_argument('-s', '--seed', default=7777, type=int,
                        help='Seed for random number generator')
+fft_group.add_argument('--scipy-backend', default='stock',
+                       choices=('stock', 'mkl'),
+                       help='Which uarray backend to use for scipy.fft. '
+                       '"stock" = default pocketfft. "mkl" = register '
+                       'mkl_fft.interfaces.scipy_fft via scipy.fft.set_backend '
+                       'around the timed region. Ignored for numpy.fft. '
+                       '(default: %(default)s)')
 
 timing_group = parser.add_argument_group(title='Timing arguments')
 timing_group.add_argument('-i', '--inner-loops', '--batch-size',
@@ -93,6 +101,18 @@ parser.add_argument('shape', type=valid_shape,
                     'the same 3D FFT.')
 
 args = parser.parse_args()
+
+# Resolve optional mkl_fft scipy uarray backend. Doing this once up front
+# lets us fail fast with a clear message if the user asked for "mkl" but
+# the package is missing, rather than silently falling through to pocketfft
+# the way a plain scipy.fft.set_backend call would.
+_mkl_scipy_backend = None
+if args.scipy_backend == 'mkl':
+    try:
+        import mkl_fft.interfaces.scipy_fft as _mkl_scipy_backend
+    except ImportError as e:
+        parser.error(f'--scipy-backend mkl requested but mkl_fft is not '
+                     f'importable in this environment: {e}')
 
 # Print environment info (conda env, MKL version)
 perf.print_environment_info()
@@ -160,15 +180,36 @@ for mod_name in args.modules:
     if 'workers' in sig.parameters:
         actual_threads = kwargs['workers'] = args.threads
 
-    # threads warm-up
-    buf = np.empty_like(arr)
-    np.copyto(buf, arr)
-    x1 = func(buf)
-    del x1
-    del buf
+    # Route scipy.fft through mkl_fft's uarray backend when requested.
+    # numpy.fft has no uarray dispatch, so the context is a no-op there.
+    if mod_name == 'scipy.fft' and _mkl_scipy_backend is not None:
+        backend_ctx = scipy.fft.set_backend(_mkl_scipy_backend, only=True)
+        effective_backend = 'mkl'
+    else:
+        backend_ctx = contextlib.nullcontext()
+        effective_backend = 'stock' if mod_name == 'scipy.fft' else 'n/a'
 
-    perf_times = perf.time_func(func, arr, kwargs, **time_kwargs)
+    if args.verbose:
+        print(f'TAG: scipy_backend = {effective_backend}')
+
+    with backend_ctx:
+        # threads warm-up — inside the backend context so the warmup path
+        # matches the timed path exactly (same dispatcher, same planner).
+        buf = np.empty_like(arr)
+        np.copyto(buf, arr)
+        x1 = func(buf)
+        del x1
+        del buf
+
+        perf_times = perf.time_func(func, arr, kwargs, **time_kwargs)
+
+    # Tag the prefix with the effective backend so CSV rows from the
+    # two scipy passes (stock vs mkl in the same env) stay distinguishable.
+    if mod_name == 'scipy.fft':
+        row_prefix = f'{args.prefix}-scipy-{effective_backend}'
+    else:
+        row_prefix = args.prefix
     for t in perf_times:
-        print(f'{args.prefix},{mod_name},{func_name},{actual_threads},'
+        print(f'{row_prefix},{mod_name},{func_name},{actual_threads},'
               f'{arr.dtype.name},{"x".join(str(i) for i in args.shape)},'
               f'{"in-place" if in_place else "out-of-place"},{t:.5g}')
