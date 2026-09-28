@@ -121,14 +121,19 @@ if args.scipy_backend == 'mkl':
         parser.error(f'--scipy-backend mkl requested but mkl_fft is not '
                      f'importable in this environment: {e}')
 
-# Route numpy.fft through mkl_fft, failing fast if the patch does not take.
+# Route numpy.fft through mkl_fft unless the installed NumPy already does,
+# failing fast if routing is not possible.
 if args.numpy_backend == 'mkl':
     try:
         import mkl_fft
     except ImportError as e:
         parser.error(f'--numpy-backend mkl requested but mkl_fft is not '
                      f'importable in this environment: {e}')
-    mkl_fft.patch_numpy_fft()
+    if not np.fft.fft.__module__.startswith('mkl_fft'):
+        if not hasattr(mkl_fft, 'patch_numpy_fft'):
+            parser.error(f'--numpy-backend mkl requested but mkl_fft '
+                         f'{mkl_fft.__version__} has no patch_numpy_fft()')
+        mkl_fft.patch_numpy_fft()
     if not np.fft.fft.__module__.startswith('mkl_fft'):
         parser.error(f'--numpy-backend mkl requested but numpy.fft.fft is '
                      f'still {np.fft.fft.__module__} after patching')
@@ -212,7 +217,7 @@ for mod_name in args.modules:
         print(f'TAG: scipy_backend = {effective_backend}')
 
     with backend_ctx:
-        # threads warm-up — inside the backend context so the warmup path
+        # threads warm-up, inside the backend context so the warmup path
         # matches the timed path exactly (same dispatcher, same planner).
         buf = np.empty_like(arr)
         np.copyto(buf, arr)
