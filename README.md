@@ -5,12 +5,19 @@ In addition to Python implementation, it is also possible to benchmark native co
 
 ## Python benchmarks
 
-The following example create benchmarking environment for NumPy and SciPy FFT available from intel channel in conda:
+The following example creates a benchmarking environment with NumPy, SciPy and
+mkl_fft from the Intel channel in conda:
 
 ```bash
-conda create -n fft_benchmark -c https://software.repos.intel.com/python/conda/ -c conda-forge numpy scipy
+conda create -n fft_benchmark --override-channels -c https://software.repos.intel.com/python/conda/ -c conda-forge numpy scipy mkl_fft mkl-service
 conda activate fft_benchmark
 ```
+
+NumPy in this environment is the stock conda-forge build, so `numpy.fft` and
+`scipy.fft` use their default pocketfft implementation unless routed to
+mkl_fft. Use `--numpy-backend mkl` and `--scipy-backend mkl` to benchmark
+oneMKL through these APIs. Both options fail with an error if mkl_fft cannot
+be used.
 
 To run the FFT benchmark framework in Python, type:
 
@@ -18,12 +25,12 @@ To run the FFT benchmark framework in Python, type:
 python fft_bench.py [-h] [args] size
 ```
 
-The framework perform initial warmup call to respective FFT API, and then performs 24 (default) timings
-for 16 (default) repetitions of FFT computations in the loop. These 24
-measurements are aggregated to report minimum, median and maximum timings,
-which are printed to STDOUT.
+The framework performs an initial warmup call to the respective FFT API, and
+then prints 24 (default) measurements, each the average time of 16 (default)
+FFT computations in a loop. Measurements are printed to STDOUT as CSV rows.
 
-Other printed lines which start with 'TAG: ' are printed for information purposes.
+Other printed lines which start with 'TAG: ' are printed for information
+purposes, including the NumPy, mkl_fft and oneMKL versions in use.
 
 ### Examples
 
@@ -47,6 +54,14 @@ computations:
 
 ```bash
 python fft_bench.py -P -d complex64 -o 5 -i 24 1001x203x3005
+```
+
+Benchmark the same 2D FFT with `numpy.fft` and `scipy.fft` routed through
+mkl_fft, using 4 threads:
+
+```bash
+python fft_bench.py -m numpy.fft --numpy-backend mkl -t 4 10000x10000
+python fft_bench.py -m scipy.fft --scipy-backend mkl -t 4 10000x10000
 ```
 
 ## Native benchmarks
@@ -99,6 +114,25 @@ computations:
 ```bash
 ./fft_bench -P -d complex64 -o 5 -i 24 1001x203x3005
 ```
+
+Without `-c`, every timed FFT call also creates, commits and frees the DFTI
+descriptor, so descriptor setup is part of each measurement. With `-c`, setup
+runs once per outer loop and its time is spread over the inner loops. Use `-c`
+to measure FFT compute, especially for small sizes where setup can dominate.
+
+## Comparing platforms
+
+To compare FFT performance across machines, keep everything except the
+hardware the same:
+
+- Use the same oneMKL, mkl_fft, NumPy and SciPy versions on every machine, and
+  keep the `TAG:` lines with the results.
+- Run the same shapes, dtypes and thread counts on every machine. Include the
+  thread counts that matter for the workload, such as 1 thread and all physical
+  cores.
+- For the native benchmark, use `-c`.
+- Record CPU frequency scaling settings (governor, turbo) and memory
+  configuration, since both affect the results.
 
 ### Usage
 

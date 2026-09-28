@@ -724,7 +724,7 @@ int main(int argc, char *argv[]) {
             if (dtype->domain == DFTI_REAL && !rfft) {
                 /* TODO: remove assertion once copy_superfluous_harmonics
                  * supports more than one dimension */
-                assert(ndims != 1);
+                assert(ndims == 1);
                 copy_superfluous_harmonics(ndims, shape, n, dtype, buf);
             }
 
