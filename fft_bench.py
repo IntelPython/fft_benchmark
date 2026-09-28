@@ -71,6 +71,13 @@ fft_group.add_argument('--scipy-backend', default='stock',
                        'mkl_fft.interfaces.scipy_fft via scipy.fft.set_backend '
                        'around the timed region. Ignored for numpy.fft. '
                        '(default: %(default)s)')
+fft_group.add_argument('--numpy-backend', default='stock',
+                       choices=('stock', 'mkl'),
+                       help='Which implementation to use for numpy.fft. '
+                       '"stock" = numpy.fft as installed. "mkl" = route '
+                       'numpy.fft through mkl_fft via '
+                       'mkl_fft.patch_numpy_fft(). Ignored for scipy.fft. '
+                       '(default: %(default)s)')
 
 timing_group = parser.add_argument_group(title='Timing arguments')
 timing_group.add_argument('-i', '--inner-loops', '--batch-size',
@@ -113,6 +120,18 @@ if args.scipy_backend == 'mkl':
     except ImportError as e:
         parser.error(f'--scipy-backend mkl requested but mkl_fft is not '
                      f'importable in this environment: {e}')
+
+# Route numpy.fft through mkl_fft, failing fast if the patch does not take.
+if args.numpy_backend == 'mkl':
+    try:
+        import mkl_fft
+    except ImportError as e:
+        parser.error(f'--numpy-backend mkl requested but mkl_fft is not '
+                     f'importable in this environment: {e}')
+    mkl_fft.patch_numpy_fft()
+    if not np.fft.fft.__module__.startswith('mkl_fft'):
+        parser.error(f'--numpy-backend mkl requested but numpy.fft.fft is '
+                     f'still {np.fft.fft.__module__} after patching')
 
 # Print environment info (conda env, MKL version)
 perf.print_environment_info()
@@ -207,6 +226,8 @@ for mod_name in args.modules:
     # two scipy passes (stock vs mkl in the same env) stay distinguishable.
     if mod_name == 'scipy.fft':
         row_prefix = f'{args.prefix}-scipy-{effective_backend}'
+    elif args.numpy_backend == 'mkl':
+        row_prefix = f'{args.prefix}-numpy-mkl'
     else:
         row_prefix = args.prefix
     for t in perf_times:

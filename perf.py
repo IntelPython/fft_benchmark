@@ -140,6 +140,17 @@ def print_environment_info() -> None:
         print(f'TAG: numpy.__mkl_version__ = {np.__mkl_version__}')
     except AttributeError:
         print('TAG: numpy.__mkl_version__ = None')
+    print(f'TAG: numpy.__version__ = {np.__version__}')
+    try:
+        import mkl_fft
+        print(f'TAG: mkl_fft.__version__ = {mkl_fft.__version__}')
+    except ImportError:
+        print('TAG: mkl_fft.__version__ = None')
+    try:
+        import mkl
+        print(f'TAG: mkl.get_version_string() = {mkl.get_version_string()}')
+    except ImportError:
+        print('TAG: mkl.get_version_string() = None')
 
 
 def time_func(func: Callable, x: np.ndarray, kwargs: dict,
